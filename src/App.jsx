@@ -445,113 +445,99 @@ function KanbanCard({card,clients,role,onMove,onApprove,onMetrics,onDelete,isDra
   );
 }
 
-// ── PIPELINE PAGE ─────────────────────────────────────────────────────────────
-function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onMoveCard,onMetrics,onDeleteCard,onSetTargets,communityClientId}){
+// ── PIPELINE OVERVIEW ────────────────────────────────────────────────────────
+function PipelineOverview({clients,cards,videos,targets,role,onSelect,onSetTargets}){
   const month=curMonth();
-  const activeClients=clients.filter(c=>c.status!=="archived");
-  const [selectedClient,setSelectedClient]=useState(communityClientId||null);
   const [showSetTargets,setShowSetTargets]=useState(false);
+  const activeClients=clients.filter(c=>c.status!=="archived");
+
+  const publishedThisMonth=id=>videos.filter(v=>v.clientId===id&&v.publishDate?.startsWith(month)).length;
+  const clientCards=id=>cards.filter(c=>c.clientId===id&&c.month===month);
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
+        <div>
+          <div style={{fontSize:22,fontWeight:800,color:C.text}}>🗂 Pipeline — {month}</div>
+          <div style={{fontSize:13,color:C.muted,marginTop:4}}>Selecciona un cliente para ver su tablero</div>
+        </div>
+        {role==="admin"&&<Btn onClick={()=>setShowSetTargets(true)}>🎯 Metas del mes</Btn>}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+        {activeClients.map(c=>{
+          const target=targets[month]?.[c.id]||0;
+          const published=publishedThisMonth(c.id);
+          const cCards=clientCards(c.id);
+          const pct=target>0?Math.min(100,Math.round(published/target*100)):null;
+          const behind=target>0&&published<Math.floor(target*0.5);
+          const stageCount=sid=>cCards.filter(x=>x.stage===sid).length;
+          const stuck=cCards.filter(x=>x.stage==="revision").length;
+          const statusColor=behind?C.red:pct===100?C.green:C.amber;
+          return(
+            <div key={c.id} onClick={()=>onSelect(c.id)}
+              style={{background:C.surface,borderRadius:14,border:`1px solid ${C.border}`,boxShadow:shadow,cursor:"pointer",overflow:"hidden"}}
+              onMouseEnter={e=>{e.currentTarget.style.boxShadow=shadowMd;e.currentTarget.style.transform="translateY(-2px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.boxShadow=shadow;e.currentTarget.style.transform="none";}}>
+              <div style={{padding:"16px 18px 12px",borderBottom:`1px solid ${C.border}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                  <div style={{fontSize:16,fontWeight:800,color:C.text}}>{c.name}</div>
+                  {stuck>0&&<span style={{fontSize:10,fontWeight:700,background:"#FCE7F3",color:"#BE185D",padding:"2px 8px",borderRadius:20}}>🔄 {stuck} en revisión</span>}
+                </div>
+                <div style={{fontSize:11,color:C.muted}}>{c.industry}</div>
+              </div>
+              <div style={{padding:"12px 18px"}}>
+                {target>0&&<>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
+                    <span style={{color:C.muted}}>Videos publicados</span>
+                    <span style={{fontWeight:700,color:statusColor}}>{published}/{target}</span>
+                  </div>
+                  <div style={{background:C.light,borderRadius:20,height:8,overflow:"hidden",marginBottom:12}}>
+                    <div style={{width:`${pct||0}%`,height:"100%",background:statusColor,borderRadius:20}}/>
+                  </div>
+                </>}
+                {!target&&<div style={{fontSize:12,color:C.muted,marginBottom:12}}>Sin meta definida</div>}
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {STAGES.filter(s=>stageCount(s.id)>0).map(s=>(
+                    <span key={s.id} style={{fontSize:10,fontWeight:700,background:s.color+"18",color:s.color,padding:"2px 8px",borderRadius:20,border:`1px solid ${s.color}30`}}>
+                      {s.label.split(" ")[0]} {stageCount(s.id)}
+                    </span>
+                  ))}
+                  {cCards.length===0&&published===0&&<span style={{fontSize:11,color:C.muted}}>Sin actividad</span>}
+                </div>
+              </div>
+              <div style={{padding:"10px 18px",background:C.light,borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:11,color:C.muted}}>{cCards.length} en pipeline · {published} publicados</span>
+                <span style={{fontSize:12,color:C.accent,fontWeight:600}}>Ver tablero →</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {showSetTargets&&<SetTargetsModal clients={clients} targets={targets} month={month} onSave={onSetTargets} onClose={()=>setShowSetTargets(false)}/>}
+    </div>
+  );
+}
+
+// ── PIPELINE BOARD ────────────────────────────────────────────────────────────
+function PipelineBoard({clientId,clients,employees,cards,videos,targets,role,onAddCard,onMoveCard,onMetrics,onDeleteCard,onBack}){
+  const month=curMonth();
   const [draggingId,setDraggingId]=useState(null);
   const [showAddCard,setShowAddCard]=useState(false);
   const [metricsCard,setMetricsCard]=useState(null);
 
-  const publishedThisMonth=clientId=>
-    videos.filter(v=>v.clientId===clientId&&v.publishDate?.startsWith(month)).length;
-  const clientCards=clientId=>cards.filter(c=>c.clientId===clientId&&c.month===month);
-
-  // ── OVERVIEW (admin only) ──────────────────────────────────────────────────
-  if(!selectedClient){
-    return(
-      <div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
-          <div>
-            <div style={{fontSize:22,fontWeight:800,color:C.text}}>🗂 Pipeline — {month}</div>
-            <div style={{fontSize:13,color:C.muted,marginTop:4}}>Selecciona un cliente para ver su tablero</div>
-          </div>
-          {role==="admin"&&<Btn onClick={()=>setShowSetTargets(true)}>🎯 Metas del mes</Btn>}
-        </div>
-
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
-          {activeClients.map(c=>{
-            const target=targets[month]?.[c.id]||0;
-            const published=publishedThisMonth(c.id);
-            const cCards=clientCards(c.id);
-            const total=published+cCards.length;
-            const pct=target>0?Math.min(100,Math.round(published/target*100)):null;
-            const behind=target>0&&published<Math.floor(target*0.5);
-            const stageCount=stageId=>cCards.filter(c=>c.stage===stageId).length;
-            const stuck=cCards.filter(c=>c.stage==="revision").length;
-            const statusColor=behind?C.red:pct===100?C.green:C.amber;
-
-            return(
-              <div key={c.id} onClick={()=>setSelectedClient(c.id)}
-                style={{background:C.surface,borderRadius:14,border:`1px solid ${C.border}`,boxShadow:shadow,cursor:"pointer",overflow:"hidden",transition:"transform .15s, box-shadow .15s"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=shadowMd;}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow=shadow;}}>
-
-                {/* Header */}
-                <div style={{padding:"16px 18px 12px",borderBottom:`1px solid ${C.border}`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                    <div style={{fontSize:16,fontWeight:800,color:C.text}}>{c.name}</div>
-                    {stuck>0&&<span style={{fontSize:10,fontWeight:700,background:"#FCE7F3",color:"#BE185D",padding:"2px 8px",borderRadius:20}}>🔄 {stuck} en revisión</span>}
-                  </div>
-                  <div style={{fontSize:11,color:C.muted}}>{c.industry}</div>
-                </div>
-
-                {/* Progress */}
-                <div style={{padding:"12px 18px"}}>
-                  {target>0&&<>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
-                      <span style={{color:C.muted}}>Videos publicados</span>
-                      <span style={{fontWeight:700,color:statusColor}}>{published}/{target}</span>
-                    </div>
-                    <div style={{background:C.light,borderRadius:20,height:8,overflow:"hidden",marginBottom:12}}>
-                      <div style={{width:`${pct}%`,height:"100%",background:statusColor,borderRadius:20,transition:"width .3s"}}/>
-                    </div>
-                  </>}
-                  {!target&&<div style={{fontSize:12,color:C.muted,marginBottom:12}}>Sin meta definida este mes</div>}
-
-                  {/* Stage mini-counts */}
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    {STAGES.filter(s=>stageCount(s.id)>0).map(s=>(
-                      <span key={s.id} style={{fontSize:10,fontWeight:700,background:s.color+"18",color:s.color,padding:"2px 8px",borderRadius:20,border:`1px solid ${s.color}30`}}>
-                        {s.label.split(" ")[0]} {stageCount(s.id)}
-                      </span>
-                    ))}
-                    {cCards.length===0&&published===0&&<span style={{fontSize:11,color:C.muted}}>Sin actividad</span>}
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div style={{padding:"10px 18px",background:C.light,borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:11,color:C.muted}}>{cCards.length} en pipeline · {published} publicados</span>
-                  <span style={{fontSize:12,color:C.accent,fontWeight:600}}>Ver tablero →</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {showSetTargets&&<SetTargetsModal clients={clients} targets={targets} month={month} onSave={onSetTargets} onClose={()=>setShowSetTargets(false)}/>}
-      </div>
-    );
-  }
-
-  // ── CLIENT KANBAN BOARD ────────────────────────────────────────────────────
-  const selClient=clients.find(c=>c.id===selectedClient);
-  const monthCards=cards.filter(c=>c.clientId===selectedClient&&c.month===month);
-  const target=targets[month]?.[selectedClient]||0;
-  const published=publishedThisMonth(selectedClient);
+  const selClient=clients.find(c=>c.id===clientId);
+  const monthCards=cards.filter(c=>c.clientId===clientId&&c.month===month);
+  const published=videos.filter(v=>v.clientId===clientId&&v.publishDate?.startsWith(month)).length;
+  const target=targets[month]?.[clientId]||0;
   const pct=target>0?Math.min(100,Math.round(published/target*100)):null;
   const behind=target>0&&published<Math.floor(target*0.5);
-
-  const cardsInStage=stageId=>monthCards.filter(c=>c.stage===stageId);
+  const cardsInStage=sid=>monthCards.filter(c=>c.stage===sid);
 
   const handleDrop=(e,stageId)=>{
     e.preventDefault();
     const cardId=e.dataTransfer.getData("cardId");
-    const card=cards.find(c=>c.id===cardId);
-    if(!card)return;
+    if(!cardId)return;
     if(stageId==="publicado"&&role==="community")return;
     onMoveCard(cardId,stageId);
     setDraggingId(null);
@@ -559,23 +545,21 @@ function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onM
 
   return(
     <div>
-      {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           {role==="admin"&&(
-            <button onClick={()=>setSelectedClient(null)} style={{background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 12px",cursor:"pointer",fontSize:12,fontWeight:600,color:C.text}}>
+            <button onClick={onBack} style={{background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 12px",cursor:"pointer",fontSize:12,fontWeight:600,color:C.text}}>
               ← Clientes
             </button>
           )}
           <div>
             <div style={{fontSize:20,fontWeight:800,color:C.text}}>🗂 {selClient?.name} — {month}</div>
-            <div style={{fontSize:12,color:C.muted,marginTop:2}}>{monthCards.length} videos en pipeline · {published} publicados{target>0?` · Meta: ${target}`:""}</div>
+            <div style={{fontSize:12,color:C.muted,marginTop:2}}>{monthCards.length} en pipeline · {published} publicados{target>0?` · Meta: ${target}`:""}</div>
           </div>
         </div>
         <Btn primary onClick={()=>setShowAddCard(true)}>+ Nuevo video</Btn>
       </div>
 
-      {/* Progress bar */}
       {target>0&&(
         <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:16}}>
           <div style={{flex:1}}>
@@ -584,7 +568,7 @@ function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onM
               <span style={{fontWeight:700,color:behind?C.red:pct===100?C.green:C.amber}}>{published}/{target} publicados</span>
             </div>
             <div style={{background:C.light,borderRadius:20,height:8,overflow:"hidden"}}>
-              <div style={{width:`${pct}%`,height:"100%",background:behind?C.red:pct===100?C.green:C.amber,borderRadius:20,transition:"width .3s"}}/>
+              <div style={{width:`${pct||0}%`,height:"100%",background:behind?C.red:pct===100?C.green:C.amber,borderRadius:20,transition:"width .3s"}}/>
             </div>
           </div>
           <div style={{fontSize:12,fontWeight:700,color:behind?C.red:pct===100?C.green:C.amber,flexShrink:0}}>
@@ -593,30 +577,28 @@ function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onM
         </div>
       )}
 
-      {/* Bottleneck summary */}
       <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
-        {STAGES.map(stage=>{
-          const count=cardsInStage(stage.id).length;
-          const isHigh=count>=5;const isMed=count>=3&&count<5;
+        {STAGES.map(s=>{
+          const n=cardsInStage(s.id).length;
           return(
-            <div key={stage.id} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:20,background:isHigh?"#FEE2E2":isMed?"#FEF9C3":C.light,border:`1px solid ${isHigh?"#FECACA":isMed?"#FDE68A":C.border}`,flexShrink:0}}>
-              <span style={{fontSize:13}}>{stage.label.split(" ")[0]}</span>
-              <span style={{fontSize:12,fontWeight:700,color:isHigh?C.red:isMed?C.amber:C.muted}}>{count}</span>
-              <span style={{fontSize:11,color:C.muted}}>{stage.label.split(" ").slice(1).join(" ")}</span>
-              {isHigh&&<span style={{fontSize:10,color:C.red,fontWeight:700}}>⚠️ cuello</span>}
+            <div key={s.id} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:20,background:n>=5?"#FEE2E2":n>=3?"#FEF9C3":C.light,border:`1px solid ${n>=5?"#FECACA":n>=3?"#FDE68A":C.border}`,flexShrink:0}}>
+              <span style={{fontSize:13}}>{s.label.split(" ")[0]}</span>
+              <span style={{fontSize:12,fontWeight:700,color:n>=5?C.red:n>=3?C.amber:C.muted}}>{n}</span>
+              <span style={{fontSize:11,color:C.muted}}>{s.label.split(" ").slice(1).join(" ")}</span>
+              {n>=5&&<span style={{fontSize:10,color:C.red,fontWeight:700}}>⚠️ cuello</span>}
             </div>
           );
         })}
       </div>
 
-      {/* Kanban */}
       <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:12}}>
         {STAGES.map(stage=>(
           <div key={stage.id}
-            onDragOver={e=>{e.preventDefault();e.currentTarget.style.background="#EFF6FF";}}
-            onDragLeave={e=>{e.currentTarget.style.background="";}}
-            onDrop={e=>{e.currentTarget.style.background="";handleDrop(e,stage.id);}}
-            style={{flex:"0 0 220px",background:C.light,borderRadius:12,padding:12,border:`1px solid ${C.border}`,opacity:(stage.id==="publicado"&&role==="community")?0.6:1,transition:"background .15s"}}>
+            onDragOver={e=>e.preventDefault()}
+            onDrop={e=>handleDrop(e,stage.id)}
+            onDragEnter={e=>e.currentTarget.style.background="#EFF6FF"}
+            onDragLeave={e=>e.currentTarget.style.background=""}
+            style={{flex:"0 0 220px",background:C.light,borderRadius:12,padding:12,border:`1px solid ${C.border}`,opacity:(stage.id==="publicado"&&role==="community")?0.6:1}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
               <div style={{fontSize:13,fontWeight:700,color:C.text}}>{stage.label}</div>
               <span style={{fontSize:11,fontWeight:700,background:stage.color+"22",color:stage.color,padding:"2px 8px",borderRadius:20}}>{cardsInStage(stage.id).length}</span>
@@ -638,10 +620,20 @@ function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onM
         ))}
       </div>
 
-      {showAddCard&&<AddCardModal clients={clients} employees={employees} defaultClientId={selectedClient} role={role} onSave={card=>{onAddCard(card);setShowAddCard(false);}} onClose={()=>setShowAddCard(false)}/>}
+      {showAddCard&&<AddCardModal clients={clients} employees={employees} defaultClientId={clientId} role={role} onSave={card=>{onAddCard(card);setShowAddCard(false);}} onClose={()=>setShowAddCard(false)}/>}
       {metricsCard&&<MetricsModal card={metricsCard} employees={employees} onSave={m=>{onMetrics(metricsCard,m);setMetricsCard(null);}} onClose={()=>setMetricsCard(null)}/>}
     </div>
   );
+}
+
+// ── PIPELINE PAGE (router) ────────────────────────────────────────────────────
+function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onMoveCard,onMetrics,onDeleteCard,onSetTargets,communityClientId}){
+  const [selectedClient,setSelectedClient]=useState(communityClientId||null);
+
+  if(!selectedClient){
+    return <PipelineOverview clients={clients} cards={cards} videos={videos} targets={targets} role={role} onSelect={setSelectedClient} onSetTargets={onSetTargets}/>;
+  }
+  return <PipelineBoard clientId={selectedClient} clients={clients} employees={employees} cards={cards} videos={videos} targets={targets} role={role} onAddCard={onAddCard} onMoveCard={onMoveCard} onMetrics={onMetrics} onDeleteCard={onDeleteCard} onBack={communityClientId?null:()=>setSelectedClient(null)}/>;
 }
 
 // ── SETTINGS PAGE ─────────────────────────────────────────────────────────────
