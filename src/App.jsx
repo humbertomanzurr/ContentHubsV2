@@ -96,7 +96,7 @@ const filterByDate = (videos,range) => {
 };
 
 const teamStats = videos => {
-  const roles={creator:{},editor:{},cm:{}};
+  const roles={creator:{},editor:{},cm:{},producer:{}};
   videos.forEach(v=>{
     [["creator",v.creator],["editor",v.editor],["cm",v.cm],["producer",v.producer]].forEach(([role,name])=>{
       if(!name)return;
