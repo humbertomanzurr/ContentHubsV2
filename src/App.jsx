@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 // ── AUTH ───────────────────────────────────────────────────────────────────────
 const USERS = {
@@ -8,13 +8,14 @@ const USERS = {
 };
 
 // ── TAXONOMY ───────────────────────────────────────────────────────────────────
-const HOOKS     = ["Impacto","Curiosidad","Historia","Transformacion","POV","Deseo","Antes/Despues","Pregunta","Estadistica","Problema","Error","Controversia","Comparacion","Autoridad","Miedo","Reto"];
-const FORMATS   = ["Demostracion de Producto","Hablando a Camara","Tutorial","Tendencia","UGC","Voz en Off","Fundador","Podcast","Entrevista en la Calle","Estilo de Vida","Meme","Educativo","Detras de Camaras","Caso de Estudio"];
-const CTAS      = ["Seguir","Guardar","Comentar","Compartir","Visitar Perfil","Comprar","Mensaje Directo","Link en Bio","Sin CTA"];
-const PLATFORMS = ["TikTok","Instagram Reels","YouTube Shorts","Facebook","LinkedIn"];
-const TRIGGERS  = ["Sorprendente","Inspirador","Identificable","Gracioso","Educativo","Curiosidad","Satisfaccion","Miedo","Urgencia","Enojo","Asombro","Asco"];
-const PILLARS   = ["Entretenimiento","Educacion","Conversion","Comunidad","Reconocimiento de Marca","Retencion"];
-
+const HOOKS      = ["Impacto","Curiosidad","Historia","Transformacion","POV","Deseo","Antes/Despues","Pregunta","Estadistica","Problema","Error","Controversia","Comparacion","Autoridad","Miedo","Reto"];
+const FORMATS    = ["Demostracion de Producto","Hablando a Camara","Tutorial","Tendencia","UGC","Voz en Off","Fundador","Podcast","Entrevista en la Calle","Estilo de Vida","Meme","Educativo","Detras de Camaras","Caso de Estudio"];
+const CTAS       = ["Seguir","Guardar","Comentar","Compartir","Visitar Perfil","Comprar","Mensaje Directo","Link en Bio","Sin CTA"];
+const PLATFORMS  = ["TikTok","Instagram Reels","YouTube Shorts","Facebook","LinkedIn"];
+const TRIGGERS   = ["Sorprendente","Inspirador","Identificable","Gracioso","Educativo","Curiosidad","Satisfaccion","Miedo","Urgencia","Enojo","Asombro","Asco"];
+const PILLARS    = ["Entretenimiento","Educacion","Conversion","Comunidad","Reconocimiento de Marca","Retencion"];
+const INDUSTRIES = ["Retail","Moda","Fitness","Fintech","Automotriz","Conglomerado","Bebidas","Restaurante","Salud","Tecnología","Bienes Raíces","Entretenimiento","Otro"];
+const EMP_ROLES  = ["Creador","Editor","Community Manager","Productor","Guionista","Otro"];
 const DATE_RANGES = [
   { value:"all",    label:"Todo el tiempo" },
   { value:"year",   label:"Este año" },
@@ -35,316 +36,481 @@ const SEED_CLIENTS = [
   { id:"matera",   name:"Matera Motors", industry:"Automotriz",   status:"pending",am:"Sofia",  goal:"Awareness" },
 ];
 
+const SEED_EMPLOYEES = [
+  { id:"e001", name:"Álvaro Salinas",    role:"Creador",           status:"active" },
+  { id:"e002", name:"Santiago Paniagua", role:"Creador",           status:"active" },
+  { id:"e003", name:"Ivanna Paniagua",   role:"Creador",           status:"active" },
+  { id:"e004", name:"Efrén",             role:"Creador",           status:"active" },
+  { id:"e005", name:"Hugo",              role:"Creador",           status:"active" },
+  { id:"e006", name:"Galilea Espinoza",  role:"Creador",           status:"active" },
+  { id:"e007", name:"Mariana García",    role:"Creador",           status:"active" },
+  { id:"e008", name:"Ana Paula",         role:"Creador",           status:"active" },
+  { id:"e009", name:"Paco",              role:"Editor",            status:"active" },
+  { id:"e010", name:"Danny",             role:"Editor",            status:"active" },
+  { id:"e011", name:"Cristian",          role:"Editor",            status:"active" },
+  { id:"e012", name:"Itzel",             role:"Community Manager", status:"active" },
+  { id:"e013", name:"Ivanna",            role:"Community Manager", status:"active" },
+  { id:"e014", name:"Paula",             role:"Community Manager", status:"active" },
+  { id:"e015", name:"Larissa",           role:"Community Manager", status:"active" },
+];
+
 const SEED_VIDEOS = [
-  { id:"v001",clientId:"tony",   title:"TOP INESPERADO",             platform:"TikTok",publishDate:"2026-06-23",creator:"Álvaro Salinas",       editor:"Paco",  cm:"Itzel",  hook:"Impacto",      format:"Demostracion de Producto",cta:"Seguir",        trigger:"Sorprendente", pillar:"Entretenimiento",       pauta:800, views:56000,likes:2100,comments:340,shares:890, saves:760,duration:45,watchTimeAvg:28,followers:520, paraTi:84, siguiendo:11, busqueda:5 },
-  { id:"v002",clientId:"tony",   title:"COLECCIÓN MUNDIAL",          platform:"TikTok",publishDate:"2026-06-25",creator:"Santiago Paniagua",    editor:"Paco",  cm:"Itzel",  hook:"Impacto",      format:"Tendencia",               cta:"Compartir",     trigger:"Inspirador",   pillar:"Entretenimiento",       pauta:800, views:53000,likes:1980,comments:290,shares:1200,saves:430,duration:38,watchTimeAvg:24,followers:490, paraTi:81, siguiendo:13, busqueda:6 },
-  { id:"v003",clientId:"tony",   title:"HAÚL ASMR",                  platform:"TikTok",publishDate:"2026-06-13",creator:"Ivanna Paniagua",      editor:"Paco",  cm:"Paula",  hook:"Impacto",      format:"Demostracion de Producto",cta:"Guardar",       trigger:"Satisfaccion", pillar:"Entretenimiento",       pauta:714, views:33000,likes:1450,comments:210,shares:340, saves:890,duration:52,watchTimeAvg:31,followers:310, paraTi:76, siguiendo:16, busqueda:8 },
-  { id:"v004",clientId:"tony",   title:"SEMANA SMARTY",              platform:"TikTok",publishDate:"2026-06-22",creator:"Álvaro Salinas",       editor:"Danny", cm:"Itzel",  hook:"Impacto",      format:"Hablando a Camara",       cta:"Seguir",        trigger:"Curiosidad",   pillar:"Educacion",             pauta:840, views:32000,likes:1230,comments:450,shares:280, saves:340,duration:41,watchTimeAvg:26,followers:290, paraTi:72, siguiendo:20, busqueda:8 },
-  { id:"v005",clientId:"tony",   title:"Lo hicimos real",            platform:"TikTok",publishDate:"2026-06-03",creator:"Efrén",                editor:"Danny", cm:"Itzel",  hook:"Transformacion",format:"Tutorial",                cta:"Guardar",       trigger:"Inspirador",   pillar:"Educacion",             pauta:410, views:27300,likes:980, comments:320,shares:180, saves:720,duration:58,watchTimeAvg:34,followers:250, paraTi:68, siguiendo:22, busqueda:10 },
-  { id:"v006",clientId:"tony",   title:"Vibras de verano",           platform:"TikTok",publishDate:"2026-06-05",creator:"Ivanna Paniagua",      editor:"Danny", cm:"Paula",  hook:"Deseo",        format:"Voz en Off",              cta:"Seguir",        trigger:"Identificable",pillar:"Entretenimiento",       pauta:410, views:25000,likes:920, comments:180,shares:420, saves:290,duration:30,watchTimeAvg:19,followers:230, paraTi:65, siguiendo:24, busqueda:11 },
-  { id:"v007",clientId:"tony",   title:"REGALO PARA PAPÁ",           platform:"TikTok",publishDate:"2026-06-19",creator:"Álvaro Salinas",       editor:"Danny", cm:"Itzel",  hook:"Antes/Despues", format:"Tutorial",               cta:"Comprar",       trigger:"Deseo",        pillar:"Conversion",            pauta:400, views:20000,likes:760, comments:290,shares:120, saves:480,duration:44,watchTimeAvg:22,followers:180, paraTi:61, siguiendo:28, busqueda:11 },
-  { id:"v008",clientId:"tony",   title:"PARA MI PAPÁ ES",            platform:"TikTok",publishDate:"2026-06-21",creator:"Hugo",                 editor:"Danny", cm:"Itzel",  hook:"Deseo",        format:"Tendencia",               cta:"Sin CTA",       trigger:"Identificable",pillar:"Entretenimiento",       pauta:400, views:7461, likes:890, comments:340,shares:120, saves:220,duration:22,watchTimeAvg:14,followers:70,  paraTi:42, siguiendo:48, busqueda:10 },
-  { id:"v009",clientId:"tony",   title:"EXPERTONY CONTESTA P.3",     platform:"TikTok",publishDate:"2026-06-29",creator:"Álvaro Salinas",       editor:"Danny", cm:"Itzel",  hook:"Pregunta",     format:"Hablando a Camara",       cta:"Comentar",      trigger:"Curiosidad",   pillar:"Comunidad",             pauta:0,   views:849,  likes:45,  comments:89, shares:12,  saves:23, duration:35,watchTimeAvg:18,followers:8,   paraTi:38, siguiendo:55, busqueda:7  },
-  { id:"v010",clientId:"unitam", title:"¡Ya llego a Unitam!",        platform:"TikTok",publishDate:"2026-06-15",creator:"Álvaro Salinas",       editor:"Danny", cm:"Ivanna", hook:"Impacto",      format:"Hablando a Camara",       cta:"Visitar Perfil",trigger:"Sorprendente", pillar:"Entretenimiento",       pauta:800, views:46000,likes:1780,comments:390,shares:650, saves:420,duration:28,watchTimeAvg:19,followers:420, paraTi:79, siguiendo:15, busqueda:6  },
-  { id:"v011",clientId:"unitam", title:"Playeras nuevas",            platform:"TikTok",publishDate:"2026-06-12",creator:"Paula, Cristian, Paco",editor:"Danny", cm:"Ivanna", hook:"POV",          format:"Tendencia",               cta:"Compartir",     trigger:"Identificable",pillar:"Entretenimiento",       pauta:800, views:40000,likes:1560,comments:280,shares:890, saves:340,duration:18,watchTimeAvg:14,followers:370, paraTi:77, siguiendo:17, busqueda:6  },
-  { id:"v012",clientId:"unitam", title:"Prompt Guion Viral ChatGPT", platform:"TikTok",publishDate:"2026-06-29",creator:"Galilea Espinoza",     editor:"Paco",  cm:"Ivanna", hook:"Curiosidad",   format:"Hablando a Camara",       cta:"Guardar",       trigger:"Educativo",    pillar:"Educacion",             pauta:0,   views:12000,likes:580, comments:210,shares:180, saves:890,duration:45,watchTimeAvg:32,followers:110, paraTi:88, siguiendo:8,  busqueda:4  },
-  { id:"v013",clientId:"unitam", title:"1, 2, 3... ¡UNITAM!",        platform:"TikTok",publishDate:"2026-06-18",creator:"Mariana García",       editor:"Paco",  cm:"Ivanna", hook:"Historia",     format:"Tendencia",               cta:"Seguir",        trigger:"Gracioso",     pillar:"Entretenimiento",       pauta:200, views:8795, likes:340, comments:120,shares:89,  saves:67, duration:15,watchTimeAvg:12,followers:82,  paraTi:55, siguiendo:36, busqueda:9  },
-  { id:"v014",clientId:"unitam", title:"Día del padre",              platform:"TikTok",publishDate:"2026-06-21",creator:"Álvaro Salinas",       editor:"Danny", cm:"Ivanna", hook:"Deseo",        format:"Hablando a Camara",       cta:"Compartir",     trigger:"Identificable",pillar:"Entretenimiento",       pauta:200, views:7958, likes:310, comments:98, shares:120, saves:89, duration:22,watchTimeAvg:15,followers:74,  paraTi:50, siguiendo:40, busqueda:10 },
-  { id:"v015",clientId:"unitam", title:"Tiempo Récord",              platform:"TikTok",publishDate:"2026-06-23",creator:"Mariana García",       editor:"Paco",  cm:"Ivanna", hook:"Impacto",      format:"Tutorial",                cta:"Guardar",       trigger:"Sorprendente", pillar:"Educacion",             pauta:200, views:719,  likes:34,  comments:18, shares:8,   saves:45, duration:30,watchTimeAvg:12,followers:7,   paraTi:31, siguiendo:58, busqueda:11 },
-  { id:"v016",clientId:"solanum",title:"This is Solanum",            platform:"TikTok",publishDate:"2026-06-16",creator:"Ana Paula y Sofia",    editor:"Danny", cm:"Larissa",hook:"Historia",     format:"Hablando a Camara",       cta:"Seguir",        trigger:"Inspirador",   pillar:"Reconocimiento de Marca",pauta:700, views:20000,likes:780, comments:210,shares:340, saves:290,duration:42,watchTimeAvg:26,followers:188, paraTi:70, siguiendo:22, busqueda:8  },
+  { id:"v001",clientId:"tony",   title:"TOP INESPERADO",             platform:"TikTok",publishDate:"2026-06-23",creator:"Álvaro Salinas",    editor:"Paco",  cm:"Itzel",  hook:"Impacto",      format:"Demostracion de Producto",cta:"Seguir",        trigger:"Sorprendente", pillar:"Entretenimiento",        pauta:800,views:56000,likes:2100,comments:340,shares:890, saves:760,duration:45,watchTimeAvg:28,followers:520,paraTi:84,siguiendo:11,busqueda:5  },
+  { id:"v002",clientId:"tony",   title:"COLECCIÓN MUNDIAL",          platform:"TikTok",publishDate:"2026-06-25",creator:"Santiago Paniagua",editor:"Paco",  cm:"Itzel",  hook:"Impacto",      format:"Tendencia",               cta:"Compartir",     trigger:"Inspirador",   pillar:"Entretenimiento",        pauta:800,views:53000,likes:1980,comments:290,shares:1200,saves:430,duration:38,watchTimeAvg:24,followers:490,paraTi:81,siguiendo:13,busqueda:6  },
+  { id:"v003",clientId:"tony",   title:"HAÚL ASMR",                  platform:"TikTok",publishDate:"2026-06-13",creator:"Ivanna Paniagua",  editor:"Paco",  cm:"Paula",  hook:"Impacto",      format:"Demostracion de Producto",cta:"Guardar",       trigger:"Satisfaccion", pillar:"Entretenimiento",        pauta:714,views:33000,likes:1450,comments:210,shares:340, saves:890,duration:52,watchTimeAvg:31,followers:310,paraTi:76,siguiendo:16,busqueda:8  },
+  { id:"v004",clientId:"tony",   title:"SEMANA SMARTY",              platform:"TikTok",publishDate:"2026-06-22",creator:"Álvaro Salinas",    editor:"Danny", cm:"Itzel",  hook:"Impacto",      format:"Hablando a Camara",       cta:"Seguir",        trigger:"Curiosidad",   pillar:"Educacion",              pauta:840,views:32000,likes:1230,comments:450,shares:280, saves:340,duration:41,watchTimeAvg:26,followers:290,paraTi:72,siguiendo:20,busqueda:8  },
+  { id:"v005",clientId:"tony",   title:"Lo hicimos real",            platform:"TikTok",publishDate:"2026-06-03",creator:"Efrén",            editor:"Danny", cm:"Itzel",  hook:"Transformacion",format:"Tutorial",                cta:"Guardar",       trigger:"Inspirador",   pillar:"Educacion",              pauta:410,views:27300,likes:980, comments:320,shares:180, saves:720,duration:58,watchTimeAvg:34,followers:250,paraTi:68,siguiendo:22,busqueda:10 },
+  { id:"v006",clientId:"tony",   title:"Vibras de verano",           platform:"TikTok",publishDate:"2026-06-05",creator:"Ivanna Paniagua",  editor:"Danny", cm:"Paula",  hook:"Deseo",        format:"Voz en Off",              cta:"Seguir",        trigger:"Identificable",pillar:"Entretenimiento",        pauta:410,views:25000,likes:920, comments:180,shares:420, saves:290,duration:30,watchTimeAvg:19,followers:230,paraTi:65,siguiendo:24,busqueda:11 },
+  { id:"v007",clientId:"tony",   title:"REGALO PARA PAPÁ",           platform:"TikTok",publishDate:"2026-06-19",creator:"Álvaro Salinas",    editor:"Danny", cm:"Itzel",  hook:"Antes/Despues", format:"Tutorial",               cta:"Comprar",       trigger:"Deseo",        pillar:"Conversion",             pauta:400,views:20000,likes:760, comments:290,shares:120, saves:480,duration:44,watchTimeAvg:22,followers:180,paraTi:61,siguiendo:28,busqueda:11 },
+  { id:"v008",clientId:"tony",   title:"PARA MI PAPÁ ES",            platform:"TikTok",publishDate:"2026-06-21",creator:"Hugo",             editor:"Danny", cm:"Itzel",  hook:"Deseo",        format:"Tendencia",               cta:"Sin CTA",       trigger:"Identificable",pillar:"Entretenimiento",        pauta:400,views:7461, likes:890, comments:340,shares:120, saves:220,duration:22,watchTimeAvg:14,followers:70, paraTi:42,siguiendo:48,busqueda:10 },
+  { id:"v009",clientId:"tony",   title:"EXPERTONY CONTESTA P.3",     platform:"TikTok",publishDate:"2026-06-29",creator:"Álvaro Salinas",    editor:"Danny", cm:"Itzel",  hook:"Pregunta",     format:"Hablando a Camara",       cta:"Comentar",      trigger:"Curiosidad",   pillar:"Comunidad",              pauta:0,  views:849,  likes:45,  comments:89, shares:12,  saves:23, duration:35,watchTimeAvg:18,followers:8,  paraTi:38,siguiendo:55,busqueda:7  },
+  { id:"v010",clientId:"unitam", title:"¡Ya llego a Unitam!",        platform:"TikTok",publishDate:"2026-06-15",creator:"Álvaro Salinas",    editor:"Danny", cm:"Ivanna", hook:"Impacto",      format:"Hablando a Camara",       cta:"Visitar Perfil",trigger:"Sorprendente", pillar:"Entretenimiento",        pauta:800,views:46000,likes:1780,comments:390,shares:650, saves:420,duration:28,watchTimeAvg:19,followers:420,paraTi:79,siguiendo:15,busqueda:6  },
+  { id:"v011",clientId:"unitam", title:"Playeras nuevas",            platform:"TikTok",publishDate:"2026-06-12",creator:"Paco",             editor:"Danny", cm:"Ivanna", hook:"POV",          format:"Tendencia",               cta:"Compartir",     trigger:"Identificable",pillar:"Entretenimiento",        pauta:800,views:40000,likes:1560,comments:280,shares:890, saves:340,duration:18,watchTimeAvg:14,followers:370,paraTi:77,siguiendo:17,busqueda:6  },
+  { id:"v012",clientId:"unitam", title:"Prompt Guion Viral ChatGPT", platform:"TikTok",publishDate:"2026-06-29",creator:"Galilea Espinoza", editor:"Paco",  cm:"Ivanna", hook:"Curiosidad",   format:"Hablando a Camara",       cta:"Guardar",       trigger:"Educativo",    pillar:"Educacion",              pauta:0,  views:12000,likes:580, comments:210,shares:180, saves:890,duration:45,watchTimeAvg:32,followers:110,paraTi:88,siguiendo:8, busqueda:4  },
+  { id:"v013",clientId:"unitam", title:"1, 2, 3... ¡UNITAM!",        platform:"TikTok",publishDate:"2026-06-18",creator:"Mariana García",   editor:"Paco",  cm:"Ivanna", hook:"Historia",     format:"Tendencia",               cta:"Seguir",        trigger:"Gracioso",     pillar:"Entretenimiento",        pauta:200,views:8795, likes:340, comments:120,shares:89,  saves:67, duration:15,watchTimeAvg:12,followers:82, paraTi:55,siguiendo:36,busqueda:9  },
+  { id:"v014",clientId:"unitam", title:"Día del padre",              platform:"TikTok",publishDate:"2026-06-21",creator:"Álvaro Salinas",    editor:"Danny", cm:"Ivanna", hook:"Deseo",        format:"Hablando a Camara",       cta:"Compartir",     trigger:"Identificable",pillar:"Entretenimiento",        pauta:200,views:7958, likes:310, comments:98, shares:120, saves:89, duration:22,watchTimeAvg:15,followers:74, paraTi:50,siguiendo:40,busqueda:10 },
+  { id:"v015",clientId:"unitam", title:"Tiempo Récord",              platform:"TikTok",publishDate:"2026-06-23",creator:"Mariana García",   editor:"Paco",  cm:"Ivanna", hook:"Impacto",      format:"Tutorial",                cta:"Guardar",       trigger:"Sorprendente", pillar:"Educacion",              pauta:200,views:719,  likes:34,  comments:18, shares:8,   saves:45, duration:30,watchTimeAvg:12,followers:7,  paraTi:31,siguiendo:58,busqueda:11 },
+  { id:"v016",clientId:"solanum",title:"This is Solanum",            platform:"TikTok",publishDate:"2026-06-16",creator:"Ana Paula",        editor:"Danny", cm:"Larissa",hook:"Historia",     format:"Hablando a Camara",       cta:"Seguir",        trigger:"Inspirador",   pillar:"Reconocimiento de Marca",pauta:700,views:20000,likes:780, comments:210,shares:340, saves:290,duration:42,watchTimeAvg:26,followers:188,paraTi:70,siguiendo:22,busqueda:8  },
 ];
 
 // ── HELPERS ────────────────────────────────────────────────────────────────────
-const fmt    = n => n >= 1000000 ? (n/1000000).toFixed(1)+"M" : n >= 1000 ? (n/1000).toFixed(0)+"K" : String(n||0);
-const pct    = n => n != null ? n+"%" : "—";
-const eng    = v => v.views > 0 ? (((v.likes+v.comments+v.shares+v.saves)/v.views)*100).toFixed(1)+"%" : "—";
-const roiStr = v => v.pauta > 0 && v.views > 0 ? "$"+(v.pauta/v.views*1000).toFixed(2)+"/1K" : v.pauta === 0 ? "Orgánico 🌱" : "—";
-const cVids  = (vs, id) => vs.filter(v => v.clientId === id);
-const totV   = vs => vs.reduce((s,v) => s+v.views, 0);
-const totP   = vs => vs.reduce((s,v) => s+v.pauta, 0);
-const avgE   = vs => vs.length ? (vs.reduce((s,v) => s+(v.views>0?(v.likes+v.comments+v.shares+v.saves)/v.views:0),0)/vs.length*100).toFixed(1)+"%" : "—";
-const avgParaTi = vs => { const w = vs.filter(v => v.paraTi != null); return w.length ? Math.round(w.reduce((s,v)=>s+v.paraTi,0)/w.length)+"%" : "—"; };
+const fmt       = n  => n>=1000000?(n/1000000).toFixed(1)+"M":n>=1000?(n/1000).toFixed(0)+"K":String(n||0);
+const pct       = n  => n!=null?n+"%":"—";
+const eng       = v  => v.views>0?(((v.likes+v.comments+v.shares+v.saves)/v.views)*100).toFixed(1)+"%":"—";
+const roiStr    = v  => v.pauta>0&&v.views>0?"$"+(v.pauta/v.views*1000).toFixed(2)+"/1K":v.pauta===0?"🌱 Orgánico":"—";
+const cVids     = (vs,id) => vs.filter(v=>v.clientId===id);
+const totV      = vs => vs.reduce((s,v)=>s+v.views,0);
+const totP      = vs => vs.reduce((s,v)=>s+v.pauta,0);
+const avgE      = vs => vs.length?(vs.reduce((s,v)=>s+(v.views>0?(v.likes+v.comments+v.shares+v.saves)/v.views:0),0)/vs.length*100).toFixed(1)+"%":"—";
+const avgParaTi = vs => { const w=vs.filter(v=>v.paraTi!=null); return w.length?Math.round(w.reduce((s,v)=>s+v.paraTi,0)/w.length)+"%":"—"; };
+const uid       = () => Math.random().toString(36).slice(2,10);
 
-const groupBy = (vs, key) => {
-  const m = {};
-  vs.forEach(v => { if(!v[key]) return; if(!m[v[key]]) m[v[key]]={n:0,s:0}; m[v[key]].n++; m[v[key]].s+=v.views; });
-  return Object.entries(m).map(([k,d]) => ({name:k, avg:Math.round(d.s/d.n), n:d.n})).sort((a,b) => b.avg-a.avg);
+const groupBy = (vs,key) => {
+  const m={};
+  vs.forEach(v=>{if(!v[key])return;if(!m[v[key]])m[v[key]]={n:0,s:0};m[v[key]].n++;m[v[key]].s+=v.views;});
+  return Object.entries(m).map(([k,d])=>({name:k,avg:Math.round(d.s/d.n),n:d.n})).sort((a,b)=>b.avg-a.avg);
 };
 
-const filterByDate = (videos, range) => {
-  if (range === "all") return videos;
-  const now = new Date("2026-07-21");
+const filterByDate = (videos,range) => {
+  if(range==="all")return videos;
+  const now=new Date("2026-07-21");
   let start;
-  if (range === "year")   start = new Date("2026-01-01");
-  if (range === "90days") start = new Date(now - 90*864e5);
-  if (range === "30days") start = new Date(now - 30*864e5);
-  if (range === "month")  start = new Date("2026-07-01");
-  if (range === "week")   start = new Date(now - 7*864e5);
-  return videos.filter(v => new Date(v.publishDate) >= start);
+  if(range==="year")  start=new Date("2026-01-01");
+  if(range==="90days")start=new Date(now-90*864e5);
+  if(range==="30days")start=new Date(now-30*864e5);
+  if(range==="month") start=new Date("2026-07-01");
+  if(range==="week")  start=new Date(now-7*864e5);
+  return videos.filter(v=>new Date(v.publishDate)>=start);
 };
 
-const teamStats = (videos) => {
-  const roles = { creator:{}, editor:{}, cm:{} };
-  videos.forEach(v => {
-    [["creator",v.creator],["editor",v.editor],["cm",v.cm]].forEach(([role,name]) => {
-      if (!name) return;
-      if (!roles[role][name]) roles[role][name]={videos:[],name,role};
+const teamStats = videos => {
+  const roles={creator:{},editor:{},cm:{}};
+  videos.forEach(v=>{
+    [["creator",v.creator],["editor",v.editor],["cm",v.cm]].forEach(([role,name])=>{
+      if(!name)return;
+      if(!roles[role][name])roles[role][name]={videos:[],name,role};
       roles[role][name].videos.push(v);
     });
   });
-  const rank = obj => Object.values(obj).map(p => ({
-    ...p,
-    count: p.videos.length,
-    avgViews: Math.round(p.videos.reduce((s,v)=>s+v.views,0)/p.videos.length),
-    topVideo: [...p.videos].sort((a,b)=>b.views-a.views)[0],
-  })).sort((a,b) => b.topVideo.views - a.topVideo.views);
-  return { creators: rank(roles.creator), editors: rank(roles.editor), cms: rank(roles.cm) };
+  const rank=obj=>Object.values(obj).map(p=>({
+    ...p, count:p.videos.length,
+    avgViews:Math.round(totV(p.videos)/p.videos.length),
+    topVideo:[...p.videos].sort((a,b)=>b.views-a.views)[0],
+  })).sort((a,b)=>b.topVideo.views-a.topVideo.views);
+  return{creators:rank(roles.creator),editors:rank(roles.editor),cms:rank(roles.cm)};
 };
 
 // ── STORAGE ────────────────────────────────────────────────────────────────────
-const store = {
-  get:  k    => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch { return null; } },
-  set:  (k,v)=> { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} },
+const store={
+  get: k=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}},
+  set: (k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}},
 };
 
-// ── DESIGN TOKENS ─────────────────────────────────────────────────────────────
-const C = {
-  bg:      "#F8FAFC",
-  surface: "#FFFFFF",
-  border:  "#E2E8F0",
-  text:    "#0F172A",
-  muted:   "#64748B",
-  light:   "#F1F5F9",
-  accent:  "#2563EB",
-  gold:    "#D97706",
-  green:   "#059669",
-  red:     "#DC2626",
-  amber:   "#F59E0B",
-  sidebar: "#0F172A",
-  sideGold:"#F59E0B",
-  sideText:"#CBD5E1",
-  sideMuted:"#475569",
+// ── COLORS ─────────────────────────────────────────────────────────────────────
+const C={
+  bg:"#F8FAFC",surface:"#FFFFFF",border:"#E2E8F0",
+  text:"#0F172A",muted:"#64748B",light:"#F1F5F9",
+  accent:"#2563EB",gold:"#D97706",green:"#059669",
+  red:"#DC2626",amber:"#F59E0B",
+  sidebar:"#0F172A",sideGold:"#F59E0B",sideText:"#CBD5E1",sideMuted:"#475569",
 };
-
-const shadow = "0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)";
-const shadowMd = "0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04)";
+const shadow  ="0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04)";
+const shadowMd="0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.04)";
 
 // ── SHARED UI ─────────────────────────────────────────────────────────────────
-const Tag = ({children, color=C.gold}) => (
-  <span style={{display:"inline-block",padding:"2px 8px",borderRadius:20,fontSize:11,fontWeight:600,background:color+"18",color,border:`1px solid ${color}30`,marginRight:4,marginBottom:2}}>
-    {children}
-  </span>
+const Tag=({children,color=C.gold})=>(
+  <span style={{display:"inline-block",padding:"2px 8px",borderRadius:20,fontSize:11,fontWeight:600,background:color+"18",color,border:`1px solid ${color}30`,marginRight:4,marginBottom:2}}>{children}</span>
 );
-
-const Kpi = ({emoji, v, l, sub, color=C.gold}) => (
+const Kpi=({emoji,v,l,color=C.gold})=>(
   <div style={{background:C.surface,borderRadius:12,padding:"20px 18px",border:`1px solid ${C.border}`,boxShadow:shadow}}>
-    <div style={{fontSize:11,color:C.muted,marginBottom:8,letterSpacing:.3}}>{emoji} {l}</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:8}}>{emoji} {l}</div>
     <div style={{fontSize:30,fontWeight:800,color,lineHeight:1}}>{v}</div>
-    {sub && <div style={{fontSize:11,color:C.muted,marginTop:6}}>{sub}</div>}
   </div>
 );
-
-const SectionTitle = ({children}) => (
-  <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.5,marginBottom:14,textTransform:"uppercase"}}>
-    {children}
-  </div>
+const Card=({children,pad=20,style={}})=>(
+  <div style={{background:C.surface,borderRadius:12,padding:pad,border:`1px solid ${C.border}`,boxShadow:shadow,...style}}>{children}</div>
 );
-
-const Card = ({children, pad=20, style={}}) => (
-  <div style={{background:C.surface,borderRadius:12,padding:pad,border:`1px solid ${C.border}`,boxShadow:shadow,...style}}>
-    {children}
-  </div>
+const SecTitle=({children})=>(
+  <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.5,marginBottom:14,textTransform:"uppercase"}}>{children}</div>
 );
-
-const Btn = ({children, primary, onClick, style={}}) => (
+const Btn=({children,primary,danger,onClick,small,style={}})=>(
   <button onClick={onClick} style={{
-    padding: primary ? "9px 18px" : "8px 14px",
-    background: primary ? C.text : C.surface,
-    color: primary ? "#FFFFFF" : C.text,
-    border: `1px solid ${primary ? C.text : C.border}`,
-    borderRadius: 8, cursor:"pointer", fontSize:13, fontWeight:600,
-    boxShadow: shadow, ...style
-  }}>
-    {children}
-  </button>
+    padding:small?"6px 12px":"9px 18px",
+    background:primary?C.text:danger?"#FEE2E2":C.surface,
+    color:primary?"#FFF":danger?C.red:C.text,
+    border:`1px solid ${primary?C.text:danger?"#FECACA":C.border}`,
+    borderRadius:8,cursor:"pointer",fontSize:small?12:13,fontWeight:600,
+    boxShadow:shadow,...style
+  }}>{children}</button>
 );
-
-const inp = {width:"100%",background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box"};
-
-// ── DATE RANGE PICKER ─────────────────────────────────────────────────────────
-function DateRangePicker({value, onChange}) {
-  return (
-    <select value={value} onChange={e=>onChange(e.target.value)}
-      style={{padding:"8px 12px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:13,color:C.text,cursor:"pointer",boxShadow:shadow,outline:"none"}}>
-      {DATE_RANGES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-    </select>
-  );
-}
+const inp={width:"100%",background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box"};
+const DateRangePicker=({value,onChange})=>(
+  <select value={value} onChange={e=>onChange(e.target.value)}
+    style={{padding:"8px 12px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:13,color:C.text,cursor:"pointer",boxShadow:shadow,outline:"none"}}>
+    {DATE_RANGES.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}
+  </select>
+);
 
 // ── LOGIN ──────────────────────────────────────────────────────────────────────
-function Login({onLogin}) {
-  const [email, setEmail] = useState("");
-  const [pass,  setPass]  = useState("");
-  const [err,   setErr]   = useState("");
-
-  const go = () => {
-    const user = Object.values(USERS).find(u => u.email === email && u.password === pass);
-    if (user) onLogin(user.role);
-    else setErr("Credenciales incorrectas ❌");
+function Login({onLogin}){
+  const[email,setEmail]=useState("");
+  const[pass,setPass]=useState("");
+  const[err,setErr]=useState("");
+  const go=()=>{
+    const user=Object.values(USERS).find(u=>u.email===email&&u.password===pass);
+    if(user)onLogin(user.role);else setErr("Credenciales incorrectas ❌");
   };
-
-  return (
+  return(
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif"}}>
       <div style={{width:360,padding:40,background:C.surface,borderRadius:20,border:`1px solid ${C.border}`,boxShadow:shadowMd}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <div style={{fontSize:28,fontWeight:900,color:C.text,letterSpacing:-1}}>TheContentHub</div>
           <div style={{fontSize:11,color:C.muted,letterSpacing:2,marginTop:4}}>🚀 REVO LABS</div>
         </div>
-        {[["📧 Email","email",email,setEmail],["🔒 Contraseña","password",pass,setPass]].map(([l,t,v,sv]) => (
+        {[["📧 Email","email",email,setEmail],["🔒 Contraseña","password",pass,setPass]].map(([l,t,v,sv])=>(
           <div key={l} style={{marginBottom:16}}>
             <div style={{fontSize:12,color:C.muted,marginBottom:6,fontWeight:500}}>{l}</div>
             <input type={t} value={v} onChange={x=>sv(x.target.value)} onKeyDown={x=>x.key==="Enter"&&go()}
               placeholder={t==="email"?"humberto@revolabsmedia.com":""} style={inp}/>
           </div>
         ))}
-        {err && <div style={{color:C.red,fontSize:12,marginBottom:12}}>{err}</div>}
+        {err&&<div style={{color:C.red,fontSize:12,marginBottom:12}}>{err}</div>}
         <button onClick={go} style={{width:"100%",padding:13,background:C.text,color:"#FFF",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",marginTop:4}}>
           Entrar →
         </button>
         <div style={{marginTop:20,padding:12,background:C.light,borderRadius:8,fontSize:11,color:C.muted}}>
-          <div>👑 Admin: humberto@revolabsmedia.com</div>
-          <div style={{marginTop:4}}>👥 Community: community@revolabsmedia.com</div>
-          <div style={{marginTop:4,color:"#94A3B8"}}>Password: Revo2026! / Community2026!</div>
+          <div>👑 Admin: humberto@revolabsmedia.com / Revo2026!</div>
+          <div style={{marginTop:4}}>👥 Community: community@revolabsmedia.com / Community2026!</div>
         </div>
       </div>
     </div>
   );
 }
 
-// ── COMMUNITY VIEW ─────────────────────────────────────────────────────────────
-function CommunityView({clients, onSubmit, onLogout}) {
-  const [clientId, setClientId] = useState("");
-  const [sent, setSent] = useState(false);
-  const blank = { clientId:"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:"" };
-  const [f, sf] = useState(blank);
-  const set = (k,v) => sf(p=>({...p,[k]:v}));
+// ── SETTINGS PAGE ─────────────────────────────────────────────────────────────
+function SettingsPage({clients,employees,setClients,setEmployees}){
+  const[tab,setTab]=useState("clients");
+  const[confirmDelete,setConfirmDelete]=useState(null); // id being confirmed
+  const[editItem,setEditItem]=useState(null);           // {type, data}
+  const[showAdd,setShowAdd]=useState(false);
 
-  const submit = () => {
-    if (!f.clientId || !f.title) return;
-    const nums = ["pauta","views","likes","comments","shares","saves","duration","watchTimeAvg","followers","paraTi","siguiendo","busqueda"];
-    onSubmit({...f, id:"v"+Date.now(), ...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})});
-    setSent(true);
-    setTimeout(()=>{setSent(false); sf(blank);}, 3000);
+  // CLIENT FORM
+  const blankClient={name:"",industry:"Retail",status:"active",am:"",goal:""};
+  const[cf,setCf]=useState(blankClient);
+  const setC=(k,v)=>setCf(p=>({...p,[k]:v}));
+
+  const saveClient=()=>{
+    if(!cf.name.trim())return;
+    if(editItem?.type==="client"){
+      setClients(prev=>prev.map(c=>c.id===editItem.data.id?{...c,...cf}:c));
+    }else{
+      setClients(prev=>[...prev,{...cf,id:uid()}]);
+    }
+    setCf(blankClient);setEditItem(null);setShowAdd(false);
   };
+  const startEditClient=c=>{setCf({name:c.name,industry:c.industry,status:c.status,am:c.am,goal:c.goal});setEditItem({type:"client",data:c});setShowAdd(true);};
+  const archiveClient=id=>setClients(prev=>prev.map(c=>c.id===id?{...c,status:"archived"}:c));
+  const deleteClient=id=>{setClients(prev=>prev.filter(c=>c.id!==id));setConfirmDelete(null);};
 
-  const g2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
-  const fld = (l,k,t="text",opts) => (
-    <div style={{marginBottom:12}}>
-      <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
-      {opts
-        ? <select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}>
-            <option value="">Seleccionar...</option>
-            {opts.map(o=><option key={o}>{o}</option>)}
-          </select>
-        : <input type={t} value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}/>
-      }
-    </div>
-  );
-  const sec = (emoji, l) => <div style={{fontSize:11,fontWeight:700,color:C.accent,letterSpacing:1,margin:"18px 0 10px"}}>{emoji} {l}</div>;
+  // EMPLOYEE FORM
+  const blankEmp={name:"",role:"Creador",status:"active"};
+  const[ef,setEf]=useState(blankEmp);
+  const setE=(k,v)=>setEf(p=>({...p,[k]:v}));
 
-  return (
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"system-ui,sans-serif"}}>
-      <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 24px",height:54,display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:shadow}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:18,fontWeight:900,color:C.text}}>TheContentHub</span>
-          <span style={{background:C.accent+"18",color:C.accent,fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20}}>Community</span>
-        </div>
-        <button onClick={onLogout} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12}}>Cerrar sesión</button>
+  const saveEmployee=()=>{
+    if(!ef.name.trim())return;
+    if(editItem?.type==="emp"){
+      setEmployees(prev=>prev.map(e=>e.id===editItem.data.id?{...e,...ef}:e));
+    }else{
+      setEmployees(prev=>[...prev,{...ef,id:uid()}]);
+    }
+    setEf(blankEmp);setEditItem(null);setShowAdd(false);
+  };
+  const startEditEmp=e=>{setEf({name:e.name,role:e.role,status:e.status});setEditItem({type:"emp",data:e});setShowAdd(true);};
+  const archiveEmp=id=>setEmployees(prev=>prev.map(e=>e.id===id?{...e,status:"archived"}:e));
+  const deleteEmp=id=>{setEmployees(prev=>prev.filter(e=>e.id!==id));setConfirmDelete(null);};
+
+  const cancelForm=()=>{setCf(blankClient);setEf(blankEmp);setEditItem(null);setShowAdd(false);};
+
+  const statusBadge=s=>({
+    active:  {bg:"#DCFCE7",color:"#15803D",label:"Activo"},
+    pending: {bg:"#FEF9C3",color:"#92400E",label:"Pendiente"},
+    archived:{bg:C.light,  color:C.muted,  label:"Archivado"},
+  }[s]||{bg:C.light,color:C.muted,label:s});
+
+  const tabStyle=active=>({
+    padding:"8px 20px",border:"none",cursor:"pointer",fontSize:13,fontWeight:600,
+    background:active?C.surface:"transparent",
+    color:active?C.text:C.muted,
+    borderBottom:active?`2px solid ${C.text}`:"2px solid transparent",
+  });
+
+  return(
+    <div>
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>⚙️ Configuración</div>
+        <div style={{fontSize:13,color:C.muted,marginTop:4}}>Administra clientes y equipo</div>
       </div>
-      <div style={{maxWidth:600,margin:"0 auto",padding:"32px 16px"}}>
-        {sent
-          ? <Card style={{textAlign:"center",padding:40}}>
-              <div style={{fontSize:48,marginBottom:16}}>✅</div>
-              <div style={{fontSize:20,fontWeight:800,color:C.green}}>¡Video registrado!</div>
-              <div style={{fontSize:13,color:C.muted,marginTop:8}}>Los datos ya están en el sistema. Gracias.</div>
-            </Card>
-          : <Card>
-              <div style={{marginBottom:20}}>
-                <div style={{fontSize:18,fontWeight:800,color:C.text}}>📹 Registrar video</div>
-                <div style={{fontSize:13,color:C.muted,marginTop:4}}>Llena los datos del video publicado</div>
+
+      {/* Tabs */}
+      <div style={{display:"flex",borderBottom:`1px solid ${C.border}`,marginBottom:24}}>
+        <button style={tabStyle(tab==="clients")} onClick={()=>{setTab("clients");cancelForm();}}>🏢 Clientes ({clients.filter(c=>c.status!=="archived").length})</button>
+        <button style={tabStyle(tab==="team")}    onClick={()=>{setTab("team");cancelForm();}}>👥 Equipo ({employees.filter(e=>e.status==="active").length})</button>
+      </div>
+
+      {/* ── CLIENTS TAB ── */}
+      {tab==="clients"&&(
+        <div>
+          {!showAdd&&(
+            <div style={{marginBottom:16}}>
+              <Btn primary onClick={()=>setShowAdd(true)}>+ Agregar cliente</Btn>
+            </div>
+          )}
+
+          {showAdd&&(
+            <Card style={{marginBottom:20,borderLeft:`4px solid ${C.accent}`}}>
+              <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:16}}>
+                {editItem?"✏️ Editar cliente":"➕ Nuevo cliente"}
               </div>
-              {sec("📌","INFO GENERAL")}
-              <div style={g2}>
-                <div style={{marginBottom:12}}>
-                  <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Cliente</div>
-                  <select value={f.clientId} onChange={x=>set("clientId",x.target.value)} style={inp}>
-                    <option value="">Seleccionar cliente...</option>
-                    {clients.filter(c=>c.status==="active").map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                {[["Nombre del cliente","name","text"],["Account Manager","am","text"]].map(([l,k,t])=>(
+                  <div key={k}><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
+                    <input type={t} value={cf[k]} onChange={x=>setC(k,x.target.value)} style={inp}/>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:12}}>
+                <div><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Industria</div>
+                  <select value={cf.industry} onChange={x=>setC("industry",x.target.value)} style={inp}>
+                    {INDUSTRIES.map(i=><option key={i}>{i}</option>)}
                   </select>
                 </div>
-                {fld("Plataforma","platform","text",PLATFORMS)}
+                <div><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Estado</div>
+                  <select value={cf.status} onChange={x=>setC("status",x.target.value)} style={inp}>
+                    <option value="active">Activo</option>
+                    <option value="pending">Pendiente</option>
+                  </select>
+                </div>
               </div>
-              {fld("Título del video","title")}
-              {fld("URL del video","url")}
-              <div style={g2}>{fld("Fecha de publicación","publishDate","date")}{fld("Duración (seg)","duration","number")}</div>
-              <div style={g2}>{fld("Creador / Talent","creator")}{fld("Editor","editor")}</div>
-              <div style={g2}>{fld("Community Manager","cm")}{fld("Pauta invertida ($)","pauta","number")}</div>
-              {sec("🎨","ATRIBUTOS CREATIVOS")}
-              <div style={g2}>{fld("🪝 Hook","hook","text",HOOKS)}{fld("🎬 Formato","format","text",FORMATS)}</div>
-              <div style={g2}>{fld("CTA","cta","text",CTAS)}{fld("Disparador emocional","trigger","text",TRIGGERS)}</div>
-              {fld("Pilar de contenido","pillar","text",PILLARS)}
-              {sec("📊","MÉTRICAS")}
-              <div style={g2}>{fld("👁 Vistas","views","number")}{fld("❤️ Me gusta","likes","number")}</div>
-              <div style={g2}>{fld("💬 Comentarios","comments","number")}{fld("🔁 Compartidos","shares","number")}</div>
-              <div style={g2}>{fld("🔖 Guardados","saves","number")}{fld("👥 Seguidores ganados","followers","number")}</div>
-              {fld("⏱ Tiempo de visualización promedio (seg)","watchTimeAvg","number")}
-              {sec("📡","FUENTES DE TRÁFICO (opcional)")}
-              <div style={{padding:10,background:C.light,borderRadius:8,marginBottom:12,fontSize:12,color:C.muted}}>
-                Estos tres números deben sumar aproximadamente 100%. Los encuentras en TikTok Analytics → Fuentes de tráfico del video.
+              <div style={{marginTop:12}}><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Objetivo</div>
+                <input value={cf.goal} onChange={x=>setC("goal",x.target.value)} style={inp} placeholder="Ej: Brand awareness + crecimiento de seguidores"/>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-                {fld("📱 % Para Ti","paraTi","number")}
-                {fld("👥 % Siguiendo","siguiendo","number")}
-                {fld("🔍 % Búsqueda","busqueda","number")}
-              </div>
-              <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:20}}>
-                <Btn onClick={submit} primary>Registrar video ✓</Btn>
+              <div style={{display:"flex",gap:10,marginTop:16}}>
+                <Btn primary onClick={saveClient}>Guardar ✓</Btn>
+                <Btn onClick={cancelForm}>Cancelar</Btn>
               </div>
             </Card>
-        }
-      </div>
+          )}
+
+          <Card pad={0}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr>{["Cliente","Industria","AM","Estado","Acciones"].map(h=>(
+                  <th key={h} style={{textAlign:"left",padding:"12px 16px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:700,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {clients.map(c=>{
+                  const s=statusBadge(c.status);
+                  const isConfirming=confirmDelete===c.id;
+                  return(
+                    <tr key={c.id} style={{background:c.status==="archived"?C.light:""}}>
+                      <td style={{padding:"13px 16px",borderBottom:`1px solid ${C.border}`}}>
+                        <div style={{fontSize:13,fontWeight:600,color:c.status==="archived"?C.muted:C.text}}>{c.name}</div>
+                        {c.goal&&<div style={{fontSize:11,color:C.muted,marginTop:2}}>{c.goal}</div>}
+                      </td>
+                      <td style={{padding:"13px 16px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{c.industry}</td>
+                      <td style={{padding:"13px 16px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{c.am||"—"}</td>
+                      <td style={{padding:"13px 16px",borderBottom:`1px solid ${C.border}`}}>
+                        <span style={{background:s.bg,color:s.color,fontSize:11,fontWeight:600,padding:"3px 8px",borderRadius:20}}>{s.label}</span>
+                      </td>
+                      <td style={{padding:"13px 16px",borderBottom:`1px solid ${C.border}`}}>
+                        {isConfirming?(
+                          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                            <span style={{fontSize:12,color:C.red,fontWeight:600}}>⚠️ ¿Eliminar definitivamente?</span>
+                            <Btn danger small onClick={()=>deleteClient(c.id)}>Sí, eliminar</Btn>
+                            <Btn small onClick={()=>setConfirmDelete(null)}>Cancelar</Btn>
+                          </div>
+                        ):(
+                          <div style={{display:"flex",gap:6}}>
+                            {c.status!=="archived"&&<Btn small onClick={()=>startEditClient(c)}>✏️ Editar</Btn>}
+                            {c.status==="active"&&<Btn small onClick={()=>archiveClient(c.id)}>📦 Archivar</Btn>}
+                            <Btn small danger onClick={()=>setConfirmDelete(c.id)}>🗑️ Eliminar</Btn>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+          <div style={{marginTop:12,fontSize:12,color:C.muted}}>
+            💡 Archivar conserva el historial de videos. Eliminar borra el cliente permanentemente.
+          </div>
+        </div>
+      )}
+
+      {/* ── TEAM TAB ── */}
+      {tab==="team"&&(
+        <div>
+          {!showAdd&&(
+            <div style={{marginBottom:16}}>
+              <Btn primary onClick={()=>setShowAdd(true)}>+ Agregar miembro</Btn>
+            </div>
+          )}
+
+          {showAdd&&(
+            <Card style={{marginBottom:20,borderLeft:`4px solid ${C.accent}`}}>
+              <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:16}}>
+                {editItem?"✏️ Editar miembro":"➕ Nuevo miembro"}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                <div><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Nombre completo</div>
+                  <input value={ef.name} onChange={x=>setE("name",x.target.value)} style={inp} placeholder="Ej: Álvaro Salinas"/>
+                </div>
+                <div><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Rol principal</div>
+                  <select value={ef.role} onChange={x=>setE("role",x.target.value)} style={inp}>
+                    {EMP_ROLES.map(r=><option key={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:10,marginTop:16}}>
+                <Btn primary onClick={saveEmployee}>Guardar ✓</Btn>
+                <Btn onClick={cancelForm}>Cancelar</Btn>
+              </div>
+            </Card>
+          )}
+
+          {EMP_ROLES.filter(role=>employees.some(e=>e.role===role&&e.status==="active")).map(role=>(
+            <div key={role} style={{marginBottom:20}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:10,textTransform:"uppercase"}}>
+                {role==="Creador"?"🎭":role==="Editor"?"✂️":role==="Community Manager"?"📱":"👤"} {role}
+              </div>
+              <Card pad={0}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead>
+                    <tr>{["Nombre","Estado","Acciones"].map(h=>(
+                      <th key={h} style={{textAlign:"left",padding:"10px 16px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:700,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {employees.filter(e=>e.role===role).map(e=>{
+                      const isConfirming=confirmDelete===e.id;
+                      return(
+                        <tr key={e.id}>
+                          <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:600,color:e.status==="archived"?C.muted:C.text}}>{e.name}</td>
+                          <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`}}>
+                            <span style={{background:e.status==="active"?"#DCFCE7":C.light,color:e.status==="active"?"#15803D":C.muted,fontSize:11,fontWeight:600,padding:"3px 8px",borderRadius:20}}>
+                              {e.status==="active"?"Activo":"Archivado"}
+                            </span>
+                          </td>
+                          <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`}}>
+                            {isConfirming?(
+                              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                                <span style={{fontSize:12,color:C.red,fontWeight:600}}>⚠️ ¿Eliminar definitivamente?</span>
+                                <Btn danger small onClick={()=>deleteEmp(e.id)}>Sí, eliminar</Btn>
+                                <Btn small onClick={()=>setConfirmDelete(null)}>Cancelar</Btn>
+                              </div>
+                            ):(
+                              <div style={{display:"flex",gap:6}}>
+                                <Btn small onClick={()=>startEditEmp(e)}>✏️ Editar</Btn>
+                                {e.status==="active"&&<Btn small onClick={()=>archiveEmp(e.id)}>📦 Archivar</Btn>}
+                                <Btn small danger onClick={()=>setConfirmDelete(e.id)}>🗑️ Eliminar</Btn>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </Card>
+            </div>
+          ))}
+
+          {employees.some(e=>e.status==="archived")&&(
+            <div style={{marginTop:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:10}}>📦 ARCHIVADOS</div>
+              <Card pad={0}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <tbody>
+                    {employees.filter(e=>e.status==="archived").map(e=>(
+                      <tr key={e.id}>
+                        <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.muted}}>{e.name}</td>
+                        <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`,fontSize:12,color:C.muted}}>{e.role}</td>
+                        <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`}}>
+                          <Btn small onClick={()=>setEmployees(prev=>prev.map(x=>x.id===e.id?{...x,status:"active"}:x))}>↩️ Reactivar</Btn>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            </div>
+          )}
+          <div style={{marginTop:12,fontSize:12,color:C.muted}}>
+            💡 Archivar conserva el historial. El historial de videos no se borra al eliminar a un miembro.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── ADD VIDEO MODAL ────────────────────────────────────────────────────────────
-function AddModal({clients, defaultClientId, onSave, onClose}) {
-  const blank = {clientId:defaultClientId||"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:""};
-  const [f, sf] = useState(blank);
-  const set = (k,v) => sf(p=>({...p,[k]:v}));
-  const save = () => {
-    if (!f.clientId || !f.title) return;
-    const nums = ["pauta","views","likes","comments","shares","saves","duration","watchTimeAvg","followers","paraTi","siguiendo","busqueda"];
-    onSave({...f, id:"v"+Date.now(), ...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})});
+function AddModal({clients,employees,defaultClientId,onSave,onClose}){
+  const activeClients=clients.filter(c=>c.status!=="archived");
+  const activeEmps=employees.filter(e=>e.status==="active");
+  const blank={clientId:defaultClientId||"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:""};
+  const[f,sf]=useState(blank);
+  const set=(k,v)=>sf(p=>({...p,[k]:v}));
+  const save=()=>{
+    if(!f.clientId||!f.title)return;
+    const nums=["pauta","views","likes","comments","shares","saves","duration","watchTimeAvg","followers","paraTi","siguiendo","busqueda"];
+    onSave({...f,id:"v"+Date.now(),...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})});
     onClose();
   };
-
-  const g2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
-  const fld = (l,k,t="text",opts) => (
+  const g2={display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
+  const fld=(l,k,t="text",opts)=>(
     <div style={{marginBottom:12}}>
       <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
       {opts
-        ? <select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}>
-            <option value="">Seleccionar...</option>
-            {opts.map(o=><option key={o}>{o}</option>)}
-          </select>
-        : <input type={t} value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}/>
-      }
+        ?<select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}><option value="">Seleccionar...</option>{opts.map(o=><option key={o}>{o}</option>)}</select>
+        :<input type={t} value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}/>}
     </div>
   );
-  const sec = (e,l) => <div style={{fontSize:11,fontWeight:700,color:C.accent,letterSpacing:1,margin:"14px 0 10px"}}>{e} {l}</div>;
-
-  return (
+  const empSel=(l,k)=>(
+    <div style={{marginBottom:12}}>
+      <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
+      <select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}>
+        <option value="">Seleccionar...</option>
+        {activeEmps.map(e=><option key={e.id} value={e.name}>{e.name} ({e.role})</option>)}
+      </select>
+    </div>
+  );
+  const sec=(e,l)=><div style={{fontSize:11,fontWeight:700,color:C.accent,letterSpacing:1,margin:"14px 0 10px"}}>{e} {l}</div>;
+  return(
     <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:999,paddingTop:24,paddingBottom:24,overflowY:"auto"}}>
       <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:shadowMd,width:"min(680px,95vw)",fontFamily:"system-ui,sans-serif"}}>
         <div style={{padding:"22px 26px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -358,24 +524,24 @@ function AddModal({clients, defaultClientId, onSave, onClose}) {
               <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Cliente</div>
               <select value={f.clientId} onChange={x=>set("clientId",x.target.value)} style={inp}>
                 <option value="">Seleccionar...</option>
-                {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                {activeClients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             {fld("Plataforma","platform","text",PLATFORMS)}
           </div>
           {fld("Título del video","title")}
           <div style={g2}>{fld("Fecha","publishDate","date")}{fld("Duración (seg)","duration","number")}</div>
-          <div style={g2}>{fld("Creador / Talent","creator")}{fld("Editor","editor")}</div>
-          <div style={g2}>{fld("Community Manager","cm")}{fld("Pauta ($)","pauta","number")}</div>
+          <div style={g2}>{empSel("🎭 Creador / Talent","creator")}{empSel("✂️ Editor","editor")}</div>
+          <div style={g2}>{empSel("📱 Community Manager","cm")}{fld("💰 Pauta ($)","pauta","number")}</div>
           {sec("🎨","ATRIBUTOS CREATIVOS")}
           <div style={g2}>{fld("🪝 Hook","hook","text",HOOKS)}{fld("🎬 Formato","format","text",FORMATS)}</div>
           <div style={g2}>{fld("CTA","cta","text",CTAS)}{fld("Disparador emocional","trigger","text",TRIGGERS)}</div>
           {fld("Pilar de contenido","pillar","text",PILLARS)}
           {sec("📊","MÉTRICAS")}
-          <div style={g2}>{fld("Vistas","views","number")}{fld("Me gusta","likes","number")}</div>
-          <div style={g2}>{fld("Comentarios","comments","number")}{fld("Compartidos","shares","number")}</div>
-          <div style={g2}>{fld("Guardados","saves","number")}{fld("Seguidores ganados","followers","number")}</div>
-          {fld("Tiempo viz. promedio (seg)","watchTimeAvg","number")}
+          <div style={g2}>{fld("👁 Vistas","views","number")}{fld("❤️ Me gusta","likes","number")}</div>
+          <div style={g2}>{fld("💬 Comentarios","comments","number")}{fld("🔁 Compartidos","shares","number")}</div>
+          <div style={g2}>{fld("🔖 Guardados","saves","number")}{fld("👤 Seguidores ganados","followers","number")}</div>
+          {fld("⏱ Tiempo viz. promedio (seg)","watchTimeAvg","number")}
           {sec("📡","FUENTES DE TRÁFICO")}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
             {fld("📱 % Para Ti","paraTi","number")}
@@ -392,33 +558,126 @@ function AddModal({clients, defaultClientId, onSave, onClose}) {
   );
 }
 
-// ── DASHBOARD ─────────────────────────────────────────────────────────────────
-function Dashboard({clients, videos, onClient}) {
-  const top = [...videos].sort((a,b)=>b.views-a.views)[0];
-  const hd  = groupBy(videos,"hook");
-  const clName = id => clients.find(c=>c.id===id)?.name||"";
+// ── COMMUNITY VIEW ─────────────────────────────────────────────────────────────
+function CommunityView({clients,employees,onSubmit,onLogout}){
+  const activeClients=clients.filter(c=>c.status==="active");
+  const activeEmps=employees.filter(e=>e.status==="active");
+  const[sent,setSent]=useState(false);
+  const blank={clientId:"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:""};
+  const[f,sf]=useState(blank);
+  const set=(k,v)=>sf(p=>({...p,[k]:v}));
+  const submit=()=>{
+    if(!f.clientId||!f.title)return;
+    const nums=["pauta","views","likes","comments","shares","saves","duration","watchTimeAvg","followers","paraTi","siguiendo","busqueda"];
+    onSubmit({...f,id:"v"+Date.now(),...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})});
+    setSent(true);setTimeout(()=>{setSent(false);sf(blank);},3000);
+  };
+  const g2={display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
+  const fld=(l,k,t="text",opts)=>(
+    <div style={{marginBottom:12}}>
+      <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
+      {opts?<select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}><option value="">Seleccionar...</option>{opts.map(o=><option key={o}>{o}</option>)}</select>
+           :<input type={t} value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}/>}
+    </div>
+  );
+  const empSel=(l,k)=>(
+    <div style={{marginBottom:12}}>
+      <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
+      <select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}>
+        <option value="">Seleccionar...</option>
+        {activeEmps.map(e=><option key={e.id} value={e.name}>{e.name} ({e.role})</option>)}
+      </select>
+    </div>
+  );
+  const sec=(e,l)=><div style={{fontSize:11,fontWeight:700,color:C.accent,letterSpacing:1,margin:"18px 0 10px"}}>{e} {l}</div>;
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"system-ui,sans-serif"}}>
+      <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 24px",height:54,display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:shadow}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18,fontWeight:900,color:C.text}}>TheContentHub</span>
+          <span style={{background:C.accent+"18",color:C.accent,fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20}}>Community</span>
+        </div>
+        <button onClick={onLogout} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12}}>Cerrar sesión</button>
+      </div>
+      <div style={{maxWidth:600,margin:"0 auto",padding:"32px 16px"}}>
+        {sent
+          ?<Card style={{textAlign:"center",padding:40}}>
+            <div style={{fontSize:48,marginBottom:16}}>✅</div>
+            <div style={{fontSize:20,fontWeight:800,color:C.green}}>¡Video registrado!</div>
+            <div style={{fontSize:13,color:C.muted,marginTop:8}}>Los datos ya están en el sistema. Gracias.</div>
+           </Card>
+          :<Card>
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:18,fontWeight:800,color:C.text}}>📹 Registrar video</div>
+              <div style={{fontSize:13,color:C.muted,marginTop:4}}>Llena los datos del video publicado</div>
+            </div>
+            {sec("📌","INFO GENERAL")}
+            <div style={g2}>
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Cliente</div>
+                <select value={f.clientId} onChange={x=>set("clientId",x.target.value)} style={inp}>
+                  <option value="">Seleccionar cliente...</option>
+                  {activeClients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              {fld("Plataforma","platform","text",PLATFORMS)}
+            </div>
+            {fld("Título del video","title")}
+            {fld("URL del video","url")}
+            <div style={g2}>{fld("Fecha de publicación","publishDate","date")}{fld("Duración (seg)","duration","number")}</div>
+            <div style={g2}>{empSel("🎭 Creador / Talent","creator")}{empSel("✂️ Editor","editor")}</div>
+            <div style={g2}>{empSel("📱 Community Manager","cm")}{fld("💰 Pauta ($)","pauta","number")}</div>
+            {sec("🎨","ATRIBUTOS CREATIVOS")}
+            <div style={g2}>{fld("🪝 Hook","hook","text",HOOKS)}{fld("🎬 Formato","format","text",FORMATS)}</div>
+            <div style={g2}>{fld("CTA","cta","text",CTAS)}{fld("Disparador emocional","trigger","text",TRIGGERS)}</div>
+            {fld("Pilar de contenido","pillar","text",PILLARS)}
+            {sec("📊","MÉTRICAS")}
+            <div style={g2}>{fld("👁 Vistas","views","number")}{fld("❤️ Me gusta","likes","number")}</div>
+            <div style={g2}>{fld("💬 Comentarios","comments","number")}{fld("🔁 Compartidos","shares","number")}</div>
+            <div style={g2}>{fld("🔖 Guardados","saves","number")}{fld("👤 Seguidores ganados","followers","number")}</div>
+            {fld("⏱ Tiempo viz. promedio (seg)","watchTimeAvg","number")}
+            {sec("📡","FUENTES DE TRÁFICO (opcional)")}
+            <div style={{padding:10,background:C.light,borderRadius:8,marginBottom:12,fontSize:12,color:C.muted}}>
+              TikTok Analytics → Fuentes de tráfico del video. Los tres deben sumar ~100%.
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+              {fld("📱 % Para Ti","paraTi","number")}
+              {fld("👥 % Siguiendo","siguiendo","number")}
+              {fld("🔍 % Búsqueda","busqueda","number")}
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:20}}>
+              <Btn onClick={submit} primary>Registrar video ✓</Btn>
+            </div>
+           </Card>
+        }
+      </div>
+    </div>
+  );
+}
 
-  return (
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function Dashboard({clients,videos,onClient}){
+  const top=[...videos].sort((a,b)=>b.views-a.views)[0];
+  const hd=groupBy(videos,"hook");
+  const clName=id=>clients.find(c=>c.id===id)?.name||"";
+  return(
     <div>
       <div style={{marginBottom:24}}>
         <div style={{fontSize:22,fontWeight:800,color:C.text}}>📊 Agency Dashboard</div>
         <div style={{fontSize:13,color:C.muted,marginTop:4}}>{videos.length} videos en el período seleccionado</div>
       </div>
-
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:24}}>
-        <Kpi emoji="👁" v={fmt(totV(videos))}                                         l="Vistas totales"/>
-        <Kpi emoji="🎬" v={videos.length}                                              l="Videos publicados"/>
-        <Kpi emoji="💹" v={avgE(videos)}                                               l="Engagement promedio" color={C.accent}/>
-        <Kpi emoji="📡" v={avgParaTi(videos)}                                          l="% Para Ti promedio"  color={C.green}/>
+        <Kpi emoji="👁" v={fmt(totV(videos))}  l="Vistas totales"/>
+        <Kpi emoji="🎬" v={videos.length}       l="Videos publicados"/>
+        <Kpi emoji="💹" v={avgE(videos)}         l="Engagement promedio" color={C.accent}/>
+        <Kpi emoji="📡" v={avgParaTi(videos)}    l="% Para Ti promedio"  color={C.green}/>
       </div>
-
       <div style={{display:"grid",gridTemplateColumns:"1.3fr 1fr",gap:16,marginBottom:16}}>
         <Card>
-          <SectionTitle>🏢 Clientes</SectionTitle>
-          {clients.map(c => {
-            const vs = cVids(videos, c.id);
-            const has = vs.length > 0;
-            return (
+          <SecTitle>🏢 Clientes</SecTitle>
+          {clients.filter(c=>c.status!=="archived").map(c=>{
+            const vs=cVids(videos,c.id);const has=vs.length>0;
+            return(
               <div key={c.id} onClick={()=>onClient(c.id)}
                 style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -436,15 +695,14 @@ function Dashboard({clients, videos, onClient}) {
             );
           })}
         </Card>
-
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          {top && (
+          {top&&(
             <Card>
-              <SectionTitle>🏆 Video del período</SectionTitle>
+              <SecTitle>🏆 Video del período</SecTitle>
               <div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:4,lineHeight:1.3}}>{top.title}</div>
               <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{clName(top.clientId)} · {top.publishDate}</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-                {[[fmt(top.views),"👁 Vistas"],[eng(top),"💹 Eng."],[`${top.paraTi??'—'}%`,"📡 Para Ti"]].map(([v,l]) => (
+                {[[fmt(top.views),"👁 Vistas"],[eng(top),"💹 Eng."],[`${top.paraTi??'—'}%`,"📡 Para Ti"]].map(([v,l])=>(
                   <div key={l} style={{background:C.light,borderRadius:8,padding:10,textAlign:"center"}}>
                     <div style={{fontSize:16,fontWeight:800,color:C.text}}>{v}</div>
                     <div style={{fontSize:9,color:C.muted,marginTop:2}}>{l}</div>
@@ -455,15 +713,13 @@ function Dashboard({clients, videos, onClient}) {
             </Card>
           )}
           <Card style={{flex:1}}>
-            <SectionTitle>🪝 Top Hooks</SectionTitle>
-            <ResponsiveContainer width="100%" height={160}>
+            <SecTitle>🪝 Top Hooks</SecTitle>
+            <ResponsiveContainer width="100%" height={150}>
               <BarChart data={hd.slice(0,5)} layout="vertical" margin={{left:0,right:20,top:0,bottom:0}}>
                 <XAxis type="number" hide/>
                 <YAxis type="category" dataKey="name" width={88} tick={{fill:C.muted,fontSize:10}} axisLine={false} tickLine={false}/>
-                <Tooltip contentStyle={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}} formatter={v=>[fmt(v),"Avg vistas"]}/>
-                <Bar dataKey="avg" radius={4}>
-                  {hd.slice(0,5).map((_,i) => <Cell key={i} fill={i===0?C.gold:i===1?C.amber:"#CBD5E1"}/>)}
-                </Bar>
+                <Tooltip contentStyle={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}} formatter={v=>[fmt(v),"Avg"]}/>
+                <Bar dataKey="avg" radius={4}>{hd.slice(0,5).map((_,i)=><Cell key={i} fill={i===0?C.gold:i===1?C.amber:"#CBD5E1"}/>)}</Bar>
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -474,48 +730,38 @@ function Dashboard({clients, videos, onClient}) {
 }
 
 // ── INTELIGENCIA CREATIVA ─────────────────────────────────────────────────────
-function CreativePage({videos}) {
-  const hd  = groupBy(videos, "hook");
-  const fd  = groupBy(videos, "format");
-  const cd  = groupBy(videos, "cta");
-  const pd  = groupBy(videos, "pillar");
-
-  const withPara = videos.filter(v=>v.paraTi!=null);
-  const avgPara  = withPara.length ? Math.round(withPara.reduce((s,v)=>s+v.paraTi,0)/withPara.length) : 0;
-  const avgSig   = withPara.length ? Math.round(withPara.reduce((s,v)=>s+(v.siguiendo||0),0)/withPara.length) : 0;
-  const avgBus   = withPara.length ? Math.round(withPara.reduce((s,v)=>s+(v.busqueda||0),0)/withPara.length) : 0;
-
-  const organic  = videos.filter(v=>v.pauta===0);
-  const pautado  = videos.filter(v=>v.pauta>0);
-  const avgOrganic = organic.length ? Math.round(totV(organic)/organic.length) : 0;
-  const avgPautado = pautado.length  ? Math.round(totV(pautado)/pautado.length) : 0;
-
-  const topAlgo = [...withPara].sort((a,b)=>b.paraTi-a.paraTi).slice(0,5);
-
-  const chart = (data, title, colorMain, colorOther="#CBD5E1") => (
+function CreativePage({videos}){
+  const hd=groupBy(videos,"hook");
+  const fd=groupBy(videos,"format");
+  const cd=groupBy(videos,"cta");
+  const w=videos.filter(v=>v.paraTi!=null);
+  const avgP=w.length?Math.round(w.reduce((s,v)=>s+v.paraTi,0)/w.length):0;
+  const avgS=w.length?Math.round(w.reduce((s,v)=>s+(v.siguiendo||0),0)/w.length):0;
+  const avgB=w.length?Math.round(w.reduce((s,v)=>s+(v.busqueda||0),0)/w.length):0;
+  const organic=videos.filter(v=>v.pauta===0);
+  const pautado=videos.filter(v=>v.pauta>0);
+  const avgOrg=organic.length?Math.round(totV(organic)/organic.length):0;
+  const avgPau=pautado.length ?Math.round(totV(pautado)/pautado.length):0;
+  const topAlgo=[...w].sort((a,b)=>b.paraTi-a.paraTi).slice(0,5);
+  const chart=(data,title,color)=>(
     <Card>
-      <SectionTitle>{title}</SectionTitle>
+      <SecTitle>{title}</SecTitle>
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={data.slice(0,7)} layout="vertical" margin={{left:0,right:20,top:0,bottom:0}}>
           <XAxis type="number" hide/>
           <YAxis type="category" dataKey="name" width={100} tick={{fill:C.muted,fontSize:10}} axisLine={false} tickLine={false}/>
           <Tooltip contentStyle={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}} formatter={v=>[fmt(v),"Avg vistas"]}/>
-          <Bar dataKey="avg" radius={4}>
-            {data.slice(0,7).map((_,i) => <Cell key={i} fill={i===0?colorMain:i===1?colorMain+"BB":colorOther}/>)}
-          </Bar>
+          <Bar dataKey="avg" radius={4}>{data.slice(0,7).map((_,i)=><Cell key={i} fill={i===0?color:i===1?color+"BB":"#CBD5E1"}/>)}</Bar>
         </BarChart>
       </ResponsiveContainer>
     </Card>
   );
-
-  return (
+  return(
     <div>
       <div style={{marginBottom:24}}>
         <div style={{fontSize:22,fontWeight:800,color:C.text}}>🧠 Inteligencia Creativa</div>
         <div style={{fontSize:13,color:C.muted,marginTop:4}}>Lo que los datos dicen que funciona — {videos.length} videos analizados</div>
       </div>
-
-      {/* Insight cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:24}}>
         <Card style={{borderLeft:`4px solid ${C.gold}`}}>
           <div style={{fontSize:10,color:C.muted,letterSpacing:1,marginBottom:8}}>🪝 MEJOR HOOK</div>
@@ -529,31 +775,27 @@ function CreativePage({videos}) {
         </Card>
         <Card style={{borderLeft:`4px solid ${C.green}`}}>
           <div style={{fontSize:10,color:C.muted,letterSpacing:1,marginBottom:8}}>📡 PARA TI PROMEDIO</div>
-          <div style={{fontSize:20,fontWeight:800,color:C.green}}>{avgPara}%</div>
-          <div style={{fontSize:12,color:C.muted,marginTop:4}}>{avgPara>=70?"🔥 Algoritmo te impulsa":"Mejorable — fortalecer el hook"}</div>
+          <div style={{fontSize:20,fontWeight:800,color:C.green}}>{avgP}%</div>
+          <div style={{fontSize:12,color:C.muted,marginTop:4}}>{avgP>=70?"🔥 El algoritmo te impulsa":"Mejorable — fortalecer el hook"}</div>
         </Card>
       </div>
-
-      {/* Charts row */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-        {chart(hd,  "🪝 Vistas promedio por Hook",   C.gold)}
-        {chart(fd,  "🎬 Vistas promedio por Formato", C.accent)}
+        {chart(hd, "🪝 Vistas promedio por Hook",   C.gold)}
+        {chart(fd, "🎬 Vistas promedio por Formato", C.accent)}
       </div>
-
-      {/* Traffic sources + pauta analysis */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <Card>
-          <SectionTitle>📡 Fuentes de tráfico (promedio)</SectionTitle>
+          <SecTitle>📡 Fuentes de tráfico (promedio)</SecTitle>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
-            {[["📱 Para Ti",avgPara,C.green],["👥 Siguiendo",avgSig,C.accent],["🔍 Búsqueda",avgBus,C.gold]].map(([l,v,color])=>(
+            {[["📱 Para Ti",avgP,C.green],["👥 Siguiendo",avgS,C.accent],["🔍 Búsqueda",avgB,C.gold]].map(([l,v,color])=>(
               <div key={l} style={{textAlign:"center",background:C.light,borderRadius:10,padding:14}}>
                 <div style={{fontSize:26,fontWeight:800,color}}>{v}%</div>
                 <div style={{fontSize:10,color:C.muted,marginTop:4}}>{l}</div>
               </div>
             ))}
           </div>
-          <SectionTitle>🔥 Videos más algorítmicos (% Para Ti)</SectionTitle>
-          {topAlgo.map((v,i) => (
+          <SecTitle>🔥 Videos más algorítmicos</SecTitle>
+          {topAlgo.map(v=>(
             <div key={v.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
               <div style={{fontSize:12,color:C.text,maxWidth:200}}>{v.title}</div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -563,36 +805,30 @@ function CreativePage({videos}) {
             </div>
           ))}
         </Card>
-
         <Card>
-          <SectionTitle>💰 ¿La pauta decide el éxito?</SectionTitle>
+          <SecTitle>💰 ¿La pauta decide el éxito?</SecTitle>
           <div style={{padding:14,background:C.light,borderRadius:10,marginBottom:16}}>
-            <div style={{fontSize:12,color:C.muted,marginBottom:8}}>Vistas promedio: orgánico vs pautado</div>
+            <div style={{fontSize:12,color:C.muted,marginBottom:10}}>Vistas promedio: orgánico vs pautado</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[["🌱 Sin pauta",avgOrganic,organic.length],[`💸 Con pauta`,avgPautado,pautado.length]].map(([l,v,n])=>(
+              {[["🌱 Sin pauta",avgOrg,organic.length],["💸 Con pauta",avgPau,pautado.length]].map(([l,v,n])=>(
                 <div key={l} style={{textAlign:"center"}}>
                   <div style={{fontSize:22,fontWeight:800,color:C.text}}>{fmt(v)}</div>
-                  <div style={{fontSize:10,color:C.muted}}>{l}</div>
-                  <div style={{fontSize:10,color:C.muted}}>({n} videos)</div>
+                  <div style={{fontSize:10,color:C.muted}}>{l} ({n} videos)</div>
                 </div>
               ))}
             </div>
           </div>
-          <div style={{padding:12,background:"#FFF7ED",borderRadius:8,border:"1px solid #FED7AA"}}>
+          <div style={{padding:12,background:"#FFF7ED",borderRadius:8,border:"1px solid #FED7AA",marginBottom:16}}>
             <div style={{fontSize:12,fontWeight:700,color:"#9A3412",marginBottom:4}}>💡 El hallazgo clave</div>
-            <div style={{fontSize:12,color:"#7C2D12",lineHeight:1.5}}>
-              La pauta amplifica, no crea. El hook decide el techo del video. Optimiza el contenido primero, amplifica después.
+            <div style={{fontSize:12,color:"#7C2D12",lineHeight:1.5}}>La pauta amplifica, no crea. El hook decide el techo. Optimiza el contenido primero, amplifica después.</div>
+          </div>
+          <SecTitle>🎯 CTAs por avg vistas</SecTitle>
+          {cd.slice(0,5).map(c=>(
+            <div key={c.name} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}`}}>
+              <span style={{fontSize:12,color:C.text}}>{c.name}</span>
+              <span style={{fontSize:12,fontWeight:700,color:C.gold}}>{fmt(c.avg)} avg</span>
             </div>
-          </div>
-          <div style={{marginTop:16}}>
-            <SectionTitle>🎯 Mejor CTA por guardados</SectionTitle>
-            {cd.slice(0,4).map((c,i) => (
-              <div key={c.name} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}`}}>
-                <span style={{fontSize:12,color:C.text}}>{c.name}</span>
-                <span style={{fontSize:12,fontWeight:700,color:C.gold}}>{fmt(c.avg)} avg</span>
-              </div>
-            ))}
-          </div>
+          ))}
         </Card>
       </div>
     </div>
@@ -600,16 +836,15 @@ function CreativePage({videos}) {
 }
 
 // ── EQUIPO ─────────────────────────────────────────────────────────────────────
-function TeamPage({videos}) {
-  const { creators, editors, cms } = useMemo(() => teamStats(videos), [videos]);
-
-  const HeroCard = ({emoji, role, person}) => person ? (
+function TeamPage({videos}){
+  const{creators,editors,cms}=useMemo(()=>teamStats(videos),[videos]);
+  const HeroCard=({emoji,role,person})=>person?(
     <Card style={{borderTop:`4px solid ${C.gold}`}}>
       <div style={{fontSize:10,color:C.muted,letterSpacing:1,marginBottom:8}}>{emoji} MEJOR {role.toUpperCase()}</div>
       <div style={{fontSize:24,fontWeight:800,color:C.text,marginBottom:4}}>{person.name}</div>
-      <div style={{fontSize:13,color:C.gold,fontWeight:600,marginBottom:8}}>🏆 {person.topVideo.title}</div>
+      <div style={{fontSize:13,color:C.gold,fontWeight:600,marginBottom:10}}>🏆 {person.topVideo.title}</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        {[[fmt(person.topVideo.views),"Vistas top video"],[person.count+" videos","Participaciones"],[fmt(person.avgViews),"Avg vistas"],[eng(person.topVideo),"Eng. top video"]].map(([v,l])=>(
+        {[[fmt(person.topVideo.views),"Top vistas"],[person.count+" videos","Participaciones"],[fmt(person.avgViews),"Avg vistas"],[eng(person.topVideo),"Eng. top"]].map(([v,l])=>(
           <div key={l} style={{background:C.light,borderRadius:8,padding:10}}>
             <div style={{fontSize:16,fontWeight:800,color:C.text}}>{v}</div>
             <div style={{fontSize:9,color:C.muted}}>{l}</div>
@@ -617,53 +852,43 @@ function TeamPage({videos}) {
         ))}
       </div>
     </Card>
-  ) : (
-    <Card><div style={{textAlign:"center",padding:20,color:C.muted}}>Sin datos</div></Card>
-  );
+  ):(<Card><div style={{textAlign:"center",padding:20,color:C.muted}}>Sin datos en este período</div></Card>);
 
-  const RankTable = ({title, emoji, people}) => (
+  const RankTable=({title,emoji,people})=>(
     <Card>
-      <SectionTitle>{emoji} {title}</SectionTitle>
-      {people.length === 0
-        ? <div style={{color:C.muted,fontSize:12,textAlign:"center",padding:20}}>Sin datos en este período</div>
-        : <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead>
-              <tr>{["#","Nombre","Videos","Avg Vistas","Mejor Video","Vistas Top"].map(h=>(
-                <th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {people.map((p,i)=>(
-                <tr key={p.name}>
-                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.muted}}>
-                    {i===0?"🥇":i===1?"🥈":i===2?"🥉":`#${i+1}`}
-                  </td>
-                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:600,color:C.text}}>{p.name}</td>
-                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.muted}}>{p.count}</td>
-                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:700,color:C.gold}}>{fmt(p.avgViews)}</td>
-                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:12,color:C.muted,maxWidth:180}}>{p.topVideo.title}</td>
-                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:700,color:C.accent}}>{fmt(p.topVideo.views)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <SecTitle>{emoji} {title}</SecTitle>
+      {people.length===0
+        ?<div style={{color:C.muted,fontSize:12,textAlign:"center",padding:20}}>Sin datos en este período</div>
+        :<table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr>{["#","Nombre","Videos","Avg Vistas","Mejor Video","Top Vistas"].map(h=>(
+            <th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+          ))}</tr></thead>
+          <tbody>{people.map((p,i)=>(
+            <tr key={p.name}>
+              <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.muted}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`#${i+1}`}</td>
+              <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:600,color:C.text}}>{p.name}</td>
+              <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.muted}}>{p.count}</td>
+              <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:700,color:C.gold}}>{fmt(p.avgViews)}</td>
+              <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:12,color:C.muted,maxWidth:180}}>{p.topVideo.title}</td>
+              <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:700,color:C.accent}}>{fmt(p.topVideo.views)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
       }
     </Card>
   );
 
-  return (
+  return(
     <div>
       <div style={{marginBottom:24}}>
         <div style={{fontSize:22,fontWeight:800,color:C.text}}>👥 Equipo</div>
-        <div style={{fontSize:13,color:C.muted,marginTop:4}}>Rendimiento basado en el mejor video del período · El criterio es calidad, no cantidad</div>
+        <div style={{fontSize:13,color:C.muted,marginTop:4}}>Rendimiento basado en el mejor video del período — calidad sobre cantidad</div>
       </div>
-
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:24}}>
-        <HeroCard emoji="🎭" role="Creador"          person={creators[0]}/>
-        <HeroCard emoji="✂️" role="Editor"           person={editors[0]}/>
+        <HeroCard emoji="🎭" role="Creador"           person={creators[0]}/>
+        <HeroCard emoji="✂️" role="Editor"            person={editors[0]}/>
         <HeroCard emoji="📱" role="Community Manager" person={cms[0]}/>
       </div>
-
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         <RankTable title="Creadores / Talent"   emoji="🎭" people={creators}/>
         <RankTable title="Editores"             emoji="✂️" people={editors}/>
@@ -674,15 +899,14 @@ function TeamPage({videos}) {
 }
 
 // ── CLIENT PAGE ───────────────────────────────────────────────────────────────
-function ClientPage({client, videos, onAdd}) {
-  const vs  = cVids(videos, client.id);
-  const top = [...vs].sort((a,b)=>b.views-a.views)[0];
-  const bot = [...vs].sort((a,b)=>a.views-b.views)[0];
-  const [q, sq] = useState("");
-  const filtered = vs.filter(v=>[v.title,v.creator,v.hook,v.format].some(x=>x?.toLowerCase().includes(q.toLowerCase())));
-  const hd = groupBy(vs,"hook");
-
-  return (
+function ClientPage({client,videos,onAdd}){
+  const vs=cVids(videos,client.id);
+  const top=[...vs].sort((a,b)=>b.views-a.views)[0];
+  const bot=[...vs].sort((a,b)=>a.views-b.views)[0];
+  const[q,sq]=useState("");
+  const filtered=vs.filter(v=>[v.title,v.creator,v.hook,v.format].some(x=>x?.toLowerCase().includes(q.toLowerCase())));
+  const hd=groupBy(vs,"hook");
+  return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
@@ -691,42 +915,37 @@ function ClientPage({client, videos, onAdd}) {
         </div>
         <Btn onClick={onAdd} primary>+ Agregar video</Btn>
       </div>
-
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-        <Kpi emoji="🎬" v={vs.length}           l="Videos"/>
-        <Kpi emoji="👁" v={fmt(totV(vs))}        l="Vistas"/>
-        <Kpi emoji="💹" v={avgE(vs)}             l="Engagement" color={C.accent}/>
-        <Kpi emoji="📡" v={avgParaTi(vs)}        l="% Para Ti"  color={C.green}/>
+        <Kpi emoji="🎬" v={vs.length}          l="Videos"/>
+        <Kpi emoji="👁" v={fmt(totV(vs))}       l="Vistas"/>
+        <Kpi emoji="💹" v={avgE(vs)}            l="Engagement" color={C.accent}/>
+        <Kpi emoji="📡" v={avgParaTi(vs)}       l="% Para Ti"  color={C.green}/>
       </div>
-
-      {vs.length === 0 ? (
-        <Card style={{textAlign:"center",padding:48}}>
+      {vs.length===0
+        ?<Card style={{textAlign:"center",padding:48}}>
           <div style={{fontSize:40,marginBottom:12}}>📹</div>
           <div style={{fontSize:15,fontWeight:700,color:C.text}}>Sin videos aún</div>
           <div style={{fontSize:13,color:C.muted,marginTop:6}}>Agrega el primero con el botón de arriba</div>
-        </Card>
-      ) : (
-        <>
+         </Card>
+        :<>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-            {hd.length > 0 && (
+            {hd.length>0&&(
               <Card>
-                <SectionTitle>🪝 Hook Performance</SectionTitle>
+                <SecTitle>🪝 Hook Performance</SecTitle>
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={hd} layout="vertical" margin={{left:0,right:20,top:0,bottom:0}}>
                     <XAxis type="number" hide/>
                     <YAxis type="category" dataKey="name" width={95} tick={{fill:C.muted,fontSize:10}} axisLine={false} tickLine={false}/>
                     <Tooltip contentStyle={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}} formatter={v=>[fmt(v),"Avg vistas"]}/>
-                    <Bar dataKey="avg" radius={4}>
-                      {hd.map((_,i)=><Cell key={i} fill={i===0?C.gold:i===1?C.amber:"#CBD5E1"}/>)}
-                    </Bar>
+                    <Bar dataKey="avg" radius={4}>{hd.map((_,i)=><Cell key={i} fill={i===0?C.gold:i===1?C.amber:"#CBD5E1"}/>)}</Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
             )}
-            <div style={{display:"flex",flexDirection:"column",gap:14}}>
-              {top && (
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {top&&(
                 <Card style={{borderLeft:`4px solid ${C.green}`}}>
-                  <SectionTitle>🏆 Mejor video</SectionTitle>
+                  <SecTitle>🏆 Mejor video</SecTitle>
                   <div style={{fontSize:14,fontWeight:800,color:C.text,marginBottom:8,lineHeight:1.3}}>{top.title}</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
                     {[[fmt(top.views),"Vistas"],[eng(top),"Engagement"],[`${top.paraTi??'—'}%`,"Para Ti"],[roiStr(top),"ROI"]].map(([v,l])=>(
@@ -739,103 +958,97 @@ function ClientPage({client, videos, onAdd}) {
                   <Tag>{top.hook}</Tag><Tag color={C.accent}>{top.format}</Tag>
                 </Card>
               )}
-              {bot && bot.id !== top?.id && (
+              {bot&&bot.id!==top?.id&&(
                 <Card style={{borderLeft:`4px solid ${C.red}`}}>
-                  <SectionTitle>⚠️ Peor video</SectionTitle>
-                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:6,lineHeight:1.3}}>{bot.title}</div>
+                  <SecTitle>⚠️ Peor video</SecTitle>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:6}}>{bot.title}</div>
                   <div style={{fontSize:13,color:C.gold,fontWeight:700}}>{fmt(bot.views)} vistas</div>
                   <div style={{marginTop:6}}><Tag color={C.red}>{bot.hook}</Tag><Tag color={C.muted}>{bot.format}</Tag></div>
                 </Card>
               )}
             </div>
           </div>
-
           <Card>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-              <SectionTitle>🎬 Videos ({vs.length})</SectionTitle>
+              <SecTitle>🎬 Videos ({vs.length})</SecTitle>
               <input value={q} onChange={x=>sq(x.target.value)} placeholder="🔍 Buscar..."
                 style={{...inp,width:220,fontSize:12,padding:"7px 10px"}}/>
             </div>
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
-                <thead>
-                  <tr>{["Título","Fecha","Hook","Vistas","Eng.","Para Ti","Pauta","ROI"].map(h=>(
-                    <th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
-                  ))}</tr>
-                </thead>
-                <tbody>
-                  {filtered.sort((a,b)=>b.views-a.views).map(v=>(
-                    <tr key={v.id} style={{transition:"background .1s"}} onMouseEnter={e=>e.currentTarget.style.background=C.light} onMouseLeave={e=>e.currentTarget.style.background=""}>
-                      <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`}}>
-                        <div style={{fontSize:13,fontWeight:600,color:C.text,maxWidth:220}}>{v.title}</div>
-                        <div style={{fontSize:10,color:C.muted,marginTop:2}}>{v.creator} · {v.editor}</div>
-                      </td>
-                      <td style={{padding:"11px 10px",fontSize:11,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{v.publishDate}</td>
-                      <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`}}><Tag>{v.hook}</Tag></td>
-                      <td style={{padding:"11px 10px",fontSize:14,fontWeight:800,color:C.gold,borderBottom:`1px solid ${C.border}`}}>{fmt(v.views)}</td>
-                      <td style={{padding:"11px 10px",fontSize:12,borderBottom:`1px solid ${C.border}`}}>{eng(v)}</td>
-                      <td style={{padding:"11px 10px",fontSize:12,fontWeight:700,color:v.paraTi>=70?C.green:C.muted,borderBottom:`1px solid ${C.border}`}}>{pct(v.paraTi)}</td>
-                      <td style={{padding:"11px 10px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`}}>${v.pauta}</td>
-                      <td style={{padding:"11px 10px",fontSize:11,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{roiStr(v)}</td>
-                    </tr>
-                  ))}
-                </tbody>
+                <thead><tr>{["Título","Fecha","Hook","Vistas","Eng.","Para Ti","Pauta","ROI"].map(h=>(
+                  <th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                ))}</tr></thead>
+                <tbody>{filtered.sort((a,b)=>b.views-a.views).map(v=>(
+                  <tr key={v.id} onMouseEnter={e=>e.currentTarget.style.background=C.light} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                    <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`}}>
+                      <div style={{fontSize:13,fontWeight:600,color:C.text,maxWidth:220}}>{v.title}</div>
+                      <div style={{fontSize:10,color:C.muted,marginTop:2}}>{v.creator} · {v.editor}</div>
+                    </td>
+                    <td style={{padding:"11px 10px",fontSize:11,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{v.publishDate}</td>
+                    <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`}}><Tag>{v.hook}</Tag></td>
+                    <td style={{padding:"11px 10px",fontSize:14,fontWeight:800,color:C.gold,borderBottom:`1px solid ${C.border}`}}>{fmt(v.views)}</td>
+                    <td style={{padding:"11px 10px",fontSize:12,borderBottom:`1px solid ${C.border}`}}>{eng(v)}</td>
+                    <td style={{padding:"11px 10px",fontSize:12,fontWeight:700,color:v.paraTi>=70?C.green:C.muted,borderBottom:`1px solid ${C.border}`}}>{pct(v.paraTi)}</td>
+                    <td style={{padding:"11px 10px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`}}>${v.pauta}</td>
+                    <td style={{padding:"11px 10px",fontSize:11,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{roiStr(v)}</td>
+                  </tr>
+                ))}</tbody>
               </table>
             </div>
           </Card>
         </>
-      )}
+      }
     </div>
   );
 }
 
-// ── MAIN APP ──────────────────────────────────────────────────────────────────
-export default function App() {
-  const [role,    setRole]    = useState(() => store.get("tch_role") || null);
-  const [clients, setClients] = useState(() => store.get("tch_clients_v2") || SEED_CLIENTS);
-  const [videos,  setVideos]  = useState(() => store.get("tch_videos_v2")  || SEED_VIDEOS);
-  const [page,    setPage]    = useState("dashboard");
-  const [modal,   setModal]   = useState(null);
-  const [range,   setRange]   = useState("all");
+// ── MAIN ──────────────────────────────────────────────────────────────────────
+export default function App(){
+  const[role,   setRole]   =useState(()=>store.get("tch_role")||null);
+  const[clients,setClients]=useState(()=>store.get("tch_clients_v3")||SEED_CLIENTS);
+  const[employees,setEmps] =useState(()=>store.get("tch_emps_v1")||SEED_EMPLOYEES);
+  const[videos, setVideos] =useState(()=>store.get("tch_videos_v3")||SEED_VIDEOS);
+  const[page,   setPage]   =useState("dashboard");
+  const[modal,  setModal]  =useState(null);
+  const[range,  setRange]  =useState("all");
 
-  useEffect(() => { store.set("tch_clients_v2", clients); }, [clients]);
-  useEffect(() => { store.set("tch_videos_v2",  videos);  }, [videos]);
-  useEffect(() => { store.set("tch_role",        role);    }, [role]);
+  useEffect(()=>{store.set("tch_clients_v3",clients);},[clients]);
+  useEffect(()=>{store.set("tch_emps_v1",employees);},[employees]);
+  useEffect(()=>{store.set("tch_videos_v3",videos);},[videos]);
+  useEffect(()=>{store.set("tch_role",role);},[role]);
 
-  const addVideo  = useCallback(v => setVideos(p => [...p,v]), []);
-  const logout    = () => { setRole(null); store.set("tch_role", null); };
-  const filtered  = useMemo(() => filterByDate(videos, range), [videos, range]);
+  const addVideo=useCallback(v=>setVideos(p=>[...p,v]),[]);
+  const logout=()=>{setRole(null);store.set("tch_role",null);};
+  const filtered=useMemo(()=>filterByDate(videos,range),[videos,range]);
 
-  if (!role) return <Login onLogin={r => { setRole(r); }} />;
+  if(!role)return<Login onLogin={r=>setRole(r)}/>;
+  if(role==="community")return<CommunityView clients={clients} employees={employees} onSubmit={addVideo} onLogout={logout}/>;
 
-  if (role === "community") return (
-    <CommunityView clients={clients} onSubmit={addVideo} onLogout={logout}/>
-  );
+  const activeClient=clients.find(c=>c.id===page);
+  const withData=clients.filter(c=>c.status!=="archived"&&cVids(filtered,c.id).length>0);
+  const noData=clients.filter(c=>c.status!=="archived"&&cVids(filtered,c.id).length===0);
 
-  // ADMIN VIEW
-  const activeClient = clients.find(c => c.id === page);
-  const withData     = clients.filter(c => cVids(filtered, c.id).length > 0);
-  const noData       = clients.filter(c => cVids(filtered, c.id).length === 0);
-
-  const navItem = (id, label, dot) => (
-    <div key={id} onClick={() => setPage(id)} style={{
+  const navItem=(id,label,dot)=>(
+    <div key={id} onClick={()=>setPage(id)} style={{
       display:"flex",alignItems:"center",gap:9,padding:"8px 16px",cursor:"pointer",
       fontSize:13,fontWeight:page===id?600:400,
       color:page===id?C.sideGold:C.sideText,
       borderLeft:page===id?`2px solid ${C.sideGold}`:"2px solid transparent",
       background:page===id?"rgba(245,158,11,.1)":"transparent",
     }}>
-      <span style={{fontSize:7,color:dot,flexShrink:0}}>●</span> {label}
+      <span style={{fontSize:7,color:dot,flexShrink:0}}>●</span>{label}
     </div>
   );
 
-  const mainPages = [
-    {id:"dashboard", label:"📊 Dashboard"},
-    {id:"creative",  label:"🧠 Inteligencia Creativa"},
-    {id:"team",      label:"👥 Equipo"},
+  const mainPages=[
+    {id:"dashboard",label:"📊 Dashboard"},
+    {id:"creative", label:"🧠 Inteligencia Creativa"},
+    {id:"team",     label:"👥 Equipo"},
+    {id:"settings", label:"⚙️ Configuración"},
   ];
 
-  return (
+  return(
     <div style={{display:"flex",height:"100vh",background:C.bg,fontFamily:"system-ui,sans-serif",color:C.text,overflow:"hidden"}}>
       {/* Sidebar */}
       <div style={{width:220,background:C.sidebar,flexShrink:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -851,52 +1064,46 @@ export default function App() {
               color:page===p.id?C.sideGold:C.sideText,
               borderLeft:page===p.id?`2px solid ${C.sideGold}`:"2px solid transparent",
               background:page===p.id?"rgba(245,158,11,.1)":"transparent",
-            }}>
-              {p.label}
-            </div>
+            }}>{p.label}</div>
           ))}
-          {withData.length > 0 && <>
+          {withData.length>0&&<>
             <div style={{padding:"14px 16px 4px",fontSize:9,color:C.sideMuted,letterSpacing:3,fontWeight:700}}>ACTIVOS</div>
-            {withData.map(c => navItem(c.id, c.name, "#22C55E"))}
+            {withData.map(c=>navItem(c.id,c.name,"#22C55E"))}
           </>}
-          {noData.length > 0 && <>
+          {noData.length>0&&<>
             <div style={{padding:"14px 16px 4px",fontSize:9,color:C.sideMuted,letterSpacing:3,fontWeight:700}}>SIN DATOS</div>
-            {noData.map(c => navItem(c.id, c.name, "#334155"))}
+            {noData.map(c=>navItem(c.id,c.name,"#334155"))}
           </>}
         </div>
         <div style={{padding:"12px 16px",borderTop:"1px solid #1E293B"}}>
           <div style={{fontSize:11,color:C.sideMuted,wordBreak:"break-all"}}>humberto@revolabsmedia.com</div>
           <div style={{fontSize:9,color:"#334155",marginTop:2}}>CSO · REVO Labs</div>
-          <button onClick={logout} style={{marginTop:8,background:"none",border:"none",color:"#EF4444",fontSize:11,cursor:"pointer",padding:0}}>
-            Cerrar sesión →
-          </button>
+          <button onClick={logout} style={{marginTop:8,background:"none",border:"none",color:"#EF4444",fontSize:11,cursor:"pointer",padding:0}}>Cerrar sesión →</button>
         </div>
       </div>
 
       {/* Main */}
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        {/* Topbar */}
         <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 24px",height:54,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,boxShadow:shadow}}>
           <div style={{fontSize:14,fontWeight:700,color:C.text}}>
-            {page==="dashboard"?"📊 Dashboard":page==="creative"?"🧠 Inteligencia Creativa":page==="team"?"👥 Equipo":activeClient?.name||""}
+            {page==="dashboard"?"📊 Dashboard":page==="creative"?"🧠 Inteligencia Creativa":page==="team"?"👥 Equipo":page==="settings"?"⚙️ Configuración":activeClient?.name||""}
           </div>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
-            <DateRangePicker value={range} onChange={setRange}/>
+            {page!=="settings"&&<DateRangePicker value={range} onChange={setRange}/>}
             <Btn onClick={()=>setModal(activeClient?.id||"")} primary>+ Video</Btn>
           </div>
         </div>
-
-        {/* Content */}
         <div style={{flex:1,overflowY:"auto",padding:24}}>
-          {page==="dashboard" && <Dashboard  clients={clients} videos={filtered} onClient={setPage}/>}
-          {page==="creative"  && <CreativePage videos={filtered}/>}
-          {page==="team"      && <TeamPage    videos={filtered}/>}
-          {activeClient       && <ClientPage  client={activeClient} videos={filtered} onAdd={()=>setModal(activeClient.id)}/>}
+          {page==="dashboard" &&<Dashboard   clients={clients}   videos={filtered} onClient={setPage}/>}
+          {page==="creative"  &&<CreativePage videos={filtered}/>}
+          {page==="team"      &&<TeamPage     videos={filtered}/>}
+          {page==="settings"  &&<SettingsPage clients={clients} employees={employees} setClients={setClients} setEmployees={setEmps}/>}
+          {activeClient       &&<ClientPage   client={activeClient} videos={filtered} onAdd={()=>setModal(activeClient.id)}/>}
         </div>
       </div>
 
-      {modal !== null && (
-        <AddModal clients={clients} defaultClientId={modal} onSave={addVideo} onClose={()=>setModal(null)}/>
+      {modal!==null&&(
+        <AddModal clients={clients} employees={employees} defaultClientId={modal} onSave={addVideo} onClose={()=>setModal(null)}/>
       )}
     </div>
   );
