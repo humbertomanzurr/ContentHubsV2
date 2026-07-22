@@ -15,7 +15,7 @@ const PLATFORMS  = ["TikTok","Instagram Reels","YouTube Shorts","Facebook","Link
 const TRIGGERS   = ["Sorprendente","Inspirador","Identificable","Gracioso","Educativo","Curiosidad","Satisfaccion","Miedo","Urgencia","Enojo","Asombro","Asco"];
 const PILLARS    = ["Entretenimiento","Educacion","Conversion","Comunidad","Reconocimiento de Marca","Retencion"];
 const INDUSTRIES = ["Retail","Moda","Fitness","Fintech","Automotriz","Conglomerado","Bebidas","Restaurante","Salud","Tecnología","Bienes Raíces","Entretenimiento","Otro"];
-const EMP_ROLES  = ["Creador","Editor","Community Manager","Productor","Guionista","Otro"];
+const EMP_ROLES  = ["Editor","Community Manager","Productor","Guionista","Otro"];
 const DATE_RANGES = [
   { value:"all",    label:"Todo el tiempo" },
   { value:"year",   label:"Este año" },
@@ -37,21 +37,13 @@ const SEED_CLIENTS = [
 ];
 
 const SEED_EMPLOYEES = [
-  { id:"e001", name:"Álvaro Salinas",    role:"Creador",           status:"active" },
-  { id:"e002", name:"Santiago Paniagua", role:"Creador",           status:"active" },
-  { id:"e003", name:"Ivanna Paniagua",   role:"Creador",           status:"active" },
-  { id:"e004", name:"Efrén",             role:"Creador",           status:"active" },
-  { id:"e005", name:"Hugo",              role:"Creador",           status:"active" },
-  { id:"e006", name:"Galilea Espinoza",  role:"Creador",           status:"active" },
-  { id:"e007", name:"Mariana García",    role:"Creador",           status:"active" },
-  { id:"e008", name:"Ana Paula",         role:"Creador",           status:"active" },
-  { id:"e009", name:"Paco",              role:"Editor",            status:"active" },
-  { id:"e010", name:"Danny",             role:"Editor",            status:"active" },
-  { id:"e011", name:"Cristian",          role:"Editor",            status:"active" },
-  { id:"e012", name:"Itzel",             role:"Community Manager", status:"active" },
-  { id:"e013", name:"Ivanna",            role:"Community Manager", status:"active" },
-  { id:"e014", name:"Paula",             role:"Community Manager", status:"active" },
-  { id:"e015", name:"Larissa",           role:"Community Manager", status:"active" },
+  { id:"e009", name:"Paco",    role:"Editor",            status:"active" },
+  { id:"e010", name:"Danny",   role:"Editor",            status:"active" },
+  { id:"e011", name:"Cristian",role:"Editor",            status:"active" },
+  { id:"e012", name:"Itzel",   role:"Community Manager", status:"active" },
+  { id:"e013", name:"Ivanna",  role:"Community Manager", status:"active" },
+  { id:"e014", name:"Paula",   role:"Community Manager", status:"active" },
+  { id:"e015", name:"Larissa", role:"Community Manager", status:"active" },
 ];
 
 const SEED_VIDEOS = [
@@ -106,7 +98,7 @@ const filterByDate = (videos,range) => {
 const teamStats = videos => {
   const roles={creator:{},editor:{},cm:{}};
   videos.forEach(v=>{
-    [["creator",v.creator],["editor",v.editor],["cm",v.cm]].forEach(([role,name])=>{
+    [["creator",v.creator],["editor",v.editor],["cm",v.cm],["producer",v.producer]].forEach(([role,name])=>{
       if(!name)return;
       if(!roles[role][name])roles[role][name]={videos:[],name,role};
       roles[role][name].videos.push(v);
@@ -117,7 +109,7 @@ const teamStats = videos => {
     avgViews:Math.round(totV(p.videos)/p.videos.length),
     topVideo:[...p.videos].sort((a,b)=>b.views-a.views)[0],
   })).sort((a,b)=>b.topVideo.views-a.topVideo.views);
-  return{creators:rank(roles.creator),editors:rank(roles.editor),cms:rank(roles.cm)};
+  return{creators:rank(roles.creator),editors:rank(roles.editor),cms:rank(roles.cm),producers:rank(roles.producer)};
 };
 
 // ── STORAGE ────────────────────────────────────────────────────────────────────
@@ -470,7 +462,8 @@ function SettingsPage({clients,employees,setClients,setEmployees}){
             </div>
           )}
           <div style={{marginTop:12,fontSize:12,color:C.muted}}>
-            💡 Archivar conserva el historial. El historial de videos no se borra al eliminar a un miembro.
+            💡 Archivar conserva el historial. El historial de videos no se borra al eliminar a un miembro.<br/>
+            🎭 El campo "Creador / Talent" en los videos es texto libre — el talent es externo y cambia constantemente.
           </div>
         </div>
       )}
@@ -482,7 +475,7 @@ function SettingsPage({clients,employees,setClients,setEmployees}){
 function AddModal({clients,employees,defaultClientId,onSave,onClose}){
   const activeClients=clients.filter(c=>c.status!=="archived");
   const activeEmps=employees.filter(e=>e.status==="active");
-  const blank={clientId:defaultClientId||"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:""};
+  const blank={clientId:defaultClientId||"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",producer:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:""};
   const[f,sf]=useState(blank);
   const set=(k,v)=>sf(p=>({...p,[k]:v}));
   const save=()=>{
@@ -531,8 +524,9 @@ function AddModal({clients,employees,defaultClientId,onSave,onClose}){
           </div>
           {fld("Título del video","title")}
           <div style={g2}>{fld("Fecha","publishDate","date")}{fld("Duración (seg)","duration","number")}</div>
-          <div style={g2}>{empSel("🎭 Creador / Talent","creator")}{empSel("✂️ Editor","editor")}</div>
-          <div style={g2}>{empSel("📱 Community Manager","cm")}{fld("💰 Pauta ($)","pauta","number")}</div>
+          <div style={g2}>{fld("🎭 Creador / Talent (libre)","creator")}{empSel("✂️ Editor","editor")}</div>
+          <div style={g2}>{empSel("📱 Community Manager","cm")}{empSel("🎥 Productor","producer")}</div>
+          {fld("💰 Pauta ($)","pauta","number")}
           {sec("🎨","ATRIBUTOS CREATIVOS")}
           <div style={g2}>{fld("🪝 Hook","hook","text",HOOKS)}{fld("🎬 Formato","format","text",FORMATS)}</div>
           <div style={g2}>{fld("CTA","cta","text",CTAS)}{fld("Disparador emocional","trigger","text",TRIGGERS)}</div>
@@ -563,7 +557,7 @@ function CommunityView({clients,employees,onSubmit,onLogout}){
   const activeClients=clients.filter(c=>c.status==="active");
   const activeEmps=employees.filter(e=>e.status==="active");
   const[sent,setSent]=useState(false);
-  const blank={clientId:"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:""};
+  const blank={clientId:"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",producer:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:""};
   const[f,sf]=useState(blank);
   const set=(k,v)=>sf(p=>({...p,[k]:v}));
   const submit=()=>{
@@ -625,8 +619,9 @@ function CommunityView({clients,employees,onSubmit,onLogout}){
             {fld("Título del video","title")}
             {fld("URL del video","url")}
             <div style={g2}>{fld("Fecha de publicación","publishDate","date")}{fld("Duración (seg)","duration","number")}</div>
-            <div style={g2}>{empSel("🎭 Creador / Talent","creator")}{empSel("✂️ Editor","editor")}</div>
-            <div style={g2}>{empSel("📱 Community Manager","cm")}{fld("💰 Pauta ($)","pauta","number")}</div>
+            <div style={g2}>{fld("🎭 Creador / Talent (libre)","creator")}{empSel("✂️ Editor","editor")}</div>
+            <div style={g2}>{empSel("📱 Community Manager","cm")}{empSel("🎥 Productor","producer")}</div>
+            {fld("💰 Pauta ($)","pauta","number")}
             {sec("🎨","ATRIBUTOS CREATIVOS")}
             <div style={g2}>{fld("🪝 Hook","hook","text",HOOKS)}{fld("🎬 Formato","format","text",FORMATS)}</div>
             <div style={g2}>{fld("CTA","cta","text",CTAS)}{fld("Disparador emocional","trigger","text",TRIGGERS)}</div>
@@ -837,7 +832,7 @@ function CreativePage({videos}){
 
 // ── EQUIPO ─────────────────────────────────────────────────────────────────────
 function TeamPage({videos}){
-  const{creators,editors,cms}=useMemo(()=>teamStats(videos),[videos]);
+  const{creators,editors,cms,producers}=useMemo(()=>teamStats(videos),[videos]);
   const HeroCard=({emoji,role,person})=>person?(
     <Card style={{borderTop:`4px solid ${C.gold}`}}>
       <div style={{fontSize:10,color:C.muted,letterSpacing:1,marginBottom:8}}>{emoji} MEJOR {role.toUpperCase()}</div>
@@ -882,17 +877,19 @@ function TeamPage({videos}){
     <div>
       <div style={{marginBottom:24}}>
         <div style={{fontSize:22,fontWeight:800,color:C.text}}>👥 Equipo</div>
-        <div style={{fontSize:13,color:C.muted,marginTop:4}}>Rendimiento basado en el mejor video del período — calidad sobre cantidad</div>
+        <div style={{fontSize:13,color:C.muted,marginTop:4}}>Equipo REVO: Editores, CMs y Productores. Talent externo aparece solo si registró videos en el período.</div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:24}}>
-        <HeroCard emoji="🎭" role="Creador"           person={creators[0]}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:24}}>
         <HeroCard emoji="✂️" role="Editor"            person={editors[0]}/>
         <HeroCard emoji="📱" role="Community Manager" person={cms[0]}/>
+        <HeroCard emoji="🎥" role="Productor"         person={producers[0]}/>
+        <HeroCard emoji="🎭" role="Creador"           person={creators[0]}/>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
-        <RankTable title="Creadores / Talent"   emoji="🎭" people={creators}/>
         <RankTable title="Editores"             emoji="✂️" people={editors}/>
         <RankTable title="Community Managers"   emoji="📱" people={cms}/>
+        <RankTable title="Productores"          emoji="🎥" people={producers}/>
+        {creators.length>0&&<RankTable title="Talent (externo)" emoji="🎭" people={creators}/>}
       </div>
     </div>
   );
