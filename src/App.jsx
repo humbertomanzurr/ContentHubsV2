@@ -446,92 +446,158 @@ function KanbanCard({card,clients,role,onMove,onApprove,onMetrics,onDelete,isDra
 }
 
 // ── PIPELINE PAGE ─────────────────────────────────────────────────────────────
-function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onMoveCard,onApproveCard,onMetrics,onDeleteCard,onSetTargets,communityClientId}){
+function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onMoveCard,onMetrics,onDeleteCard,onSetTargets,communityClientId}){
   const month=curMonth();
   const activeClients=clients.filter(c=>c.status!=="archived");
-  const [draggingId,setDraggingId]=useState(null);
-  const [showAddCard,setShowAddCard]=useState(false);
+  const [selectedClient,setSelectedClient]=useState(communityClientId||null);
   const [showSetTargets,setShowSetTargets]=useState(false);
-  const [metricsCard,setMetricsCard]=useState(null);
 
-  const monthCards=cards.filter(c=>c.month===month);
-  const visible=role==="community"&&communityClientId
-    ?monthCards.filter(c=>c.clientId===communityClientId)
-    :monthCards;
-
-  const cardsInStage=stageId=>visible.filter(c=>c.stage===stageId);
-
-  // Published this month = videos with publishDate in this month
   const publishedThisMonth=clientId=>
     videos.filter(v=>v.clientId===clientId&&v.publishDate?.startsWith(month)).length;
-  // In pipeline this month
-  const inPipelineCount=clientId=>monthCards.filter(c=>c.clientId===clientId).length;
+  const clientCards=clientId=>cards.filter(c=>c.clientId===clientId&&c.month===month);
+
+  // ── OVERVIEW (admin only) ──────────────────────────────────────────────────
+  if(!selectedClient){
+    return(
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
+          <div>
+            <div style={{fontSize:22,fontWeight:800,color:C.text}}>🗂 Pipeline — {month}</div>
+            <div style={{fontSize:13,color:C.muted,marginTop:4}}>Selecciona un cliente para ver su tablero</div>
+          </div>
+          {role==="admin"&&<Btn onClick={()=>setShowSetTargets(true)}>🎯 Metas del mes</Btn>}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+          {activeClients.map(c=>{
+            const target=targets[month]?.[c.id]||0;
+            const published=publishedThisMonth(c.id);
+            const cCards=clientCards(c.id);
+            const total=published+cCards.length;
+            const pct=target>0?Math.min(100,Math.round(published/target*100)):null;
+            const behind=target>0&&published<Math.floor(target*0.5);
+            const stageCount=stageId=>cCards.filter(c=>c.stage===stageId).length;
+            const stuck=cCards.filter(c=>c.stage==="revision").length;
+            const statusColor=behind?C.red:pct===100?C.green:C.amber;
+
+            return(
+              <div key={c.id} onClick={()=>setSelectedClient(c.id)}
+                style={{background:C.surface,borderRadius:14,border:`1px solid ${C.border}`,boxShadow:shadow,cursor:"pointer",overflow:"hidden",transition:"transform .15s, box-shadow .15s"}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=shadowMd;}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow=shadow;}}>
+
+                {/* Header */}
+                <div style={{padding:"16px 18px 12px",borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <div style={{fontSize:16,fontWeight:800,color:C.text}}>{c.name}</div>
+                    {stuck>0&&<span style={{fontSize:10,fontWeight:700,background:"#FCE7F3",color:"#BE185D",padding:"2px 8px",borderRadius:20}}>🔄 {stuck} en revisión</span>}
+                  </div>
+                  <div style={{fontSize:11,color:C.muted}}>{c.industry}</div>
+                </div>
+
+                {/* Progress */}
+                <div style={{padding:"12px 18px"}}>
+                  {target>0&&<>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
+                      <span style={{color:C.muted}}>Videos publicados</span>
+                      <span style={{fontWeight:700,color:statusColor}}>{published}/{target}</span>
+                    </div>
+                    <div style={{background:C.light,borderRadius:20,height:8,overflow:"hidden",marginBottom:12}}>
+                      <div style={{width:`${pct}%`,height:"100%",background:statusColor,borderRadius:20,transition:"width .3s"}}/>
+                    </div>
+                  </>}
+                  {!target&&<div style={{fontSize:12,color:C.muted,marginBottom:12}}>Sin meta definida este mes</div>}
+
+                  {/* Stage mini-counts */}
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {STAGES.filter(s=>stageCount(s.id)>0).map(s=>(
+                      <span key={s.id} style={{fontSize:10,fontWeight:700,background:s.color+"18",color:s.color,padding:"2px 8px",borderRadius:20,border:`1px solid ${s.color}30`}}>
+                        {s.label.split(" ")[0]} {stageCount(s.id)}
+                      </span>
+                    ))}
+                    {cCards.length===0&&published===0&&<span style={{fontSize:11,color:C.muted}}>Sin actividad</span>}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div style={{padding:"10px 18px",background:C.light,borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:11,color:C.muted}}>{cCards.length} en pipeline · {published} publicados</span>
+                  <span style={{fontSize:12,color:C.accent,fontWeight:600}}>Ver tablero →</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {showSetTargets&&<SetTargetsModal clients={clients} targets={targets} month={month} onSave={onSetTargets} onClose={()=>setShowSetTargets(false)}/>}
+      </div>
+    );
+  }
+
+  // ── CLIENT KANBAN BOARD ────────────────────────────────────────────────────
+  const selClient=clients.find(c=>c.id===selectedClient);
+  const monthCards=cards.filter(c=>c.clientId===selectedClient&&c.month===month);
+  const [draggingId,setDraggingId]=useState(null);
+  const [showAddCard,setShowAddCard]=useState(false);
+  const [metricsCard,setMetricsCard]=useState(null);
+  const target=targets[month]?.[selectedClient]||0;
+  const published=publishedThisMonth(selectedClient);
+  const pct=target>0?Math.min(100,Math.round(published/target*100)):null;
+  const behind=target>0&&published<Math.floor(target*0.5);
+
+  const cardsInStage=stageId=>monthCards.filter(c=>c.stage===stageId);
 
   const handleDrop=(e,stageId)=>{
     e.preventDefault();
     const cardId=e.dataTransfer.getData("cardId");
     const card=cards.find(c=>c.id===cardId);
     if(!card)return;
-    // Community cannot move to publicado
     if(stageId==="publicado"&&role==="community")return;
     onMoveCard(cardId,stageId);
     setDraggingId(null);
   };
 
-  const clientsToShow=role==="community"&&communityClientId
-    ?activeClients.filter(c=>c.id===communityClientId)
-    :activeClients;
-
   return(
     <div>
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
-        <div>
-          <div style={{fontSize:22,fontWeight:800,color:C.text}}>🗂 Pipeline — {month}</div>
-          <div style={{fontSize:13,color:C.muted,marginTop:4}}>Flujo de producción del mes en curso</div>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          {role==="admin"&&(
+            <button onClick={()=>setSelectedClient(null)} style={{background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 12px",cursor:"pointer",fontSize:12,fontWeight:600,color:C.text}}>
+              ← Clientes
+            </button>
+          )}
+          <div>
+            <div style={{fontSize:20,fontWeight:800,color:C.text}}>🗂 {selClient?.name} — {month}</div>
+            <div style={{fontSize:12,color:C.muted,marginTop:2}}>{monthCards.length} videos en pipeline · {published} publicados{target>0?` · Meta: ${target}`:""}</div>
+          </div>
         </div>
-        <div style={{display:"flex",gap:10}}>
-          {role==="admin"&&<Btn onClick={()=>setShowSetTargets(true)}>🎯 Metas del mes</Btn>}
-          <Btn primary onClick={()=>setShowAddCard(true)}>+ Nuevo video</Btn>
-        </div>
+        <Btn primary onClick={()=>setShowAddCard(true)}>+ Nuevo video</Btn>
       </div>
 
-      {/* Progress summary */}
-      {clientsToShow.filter(c=>(targets[month]?.[c.id]||0)>0||(inPipelineCount(c.id)+publishedThisMonth(c.id))>0).length>0&&(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12,marginBottom:24}}>
-          {clientsToShow.map(c=>{
-            const target=targets[month]?.[c.id]||0;
-            const published=publishedThisMonth(c.id);
-            const pipeline=inPipelineCount(c.id);
-            const total=published+pipeline;
-            const pct=target>0?Math.min(100,Math.round(published/target*100)):null;
-            const behind=target>0&&published<target*0.5;
-            if(!target&&!total)return null;
-            return(
-              <Card key={c.id} style={{borderLeft:`3px solid ${behind?C.red:pct===100?C.green:C.amber}`}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:8}}>{c.name}</div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
-                  <span style={{color:C.green}}>✅ {published} publicados</span>
-                  <span style={{color:C.accent}}>🎬 {pipeline} en pipeline</span>
-                </div>
-                {target>0&&<>
-                  <div style={{background:C.light,borderRadius:20,height:6,overflow:"hidden",marginBottom:4}}>
-                    <div style={{width:`${pct}%`,height:"100%",background:pct===100?C.green:behind?C.red:C.amber,borderRadius:20,transition:"width .3s"}}/>
-                  </div>
-                  <div style={{fontSize:11,color:C.muted}}>{published}/{target} meta · {Math.max(0,target-published)} restantes</div>
-                </>}
-              </Card>
-            );
-          })}
+      {/* Progress bar */}
+      {target>0&&(
+        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:16}}>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
+              <span style={{color:C.muted}}>Progreso mensual</span>
+              <span style={{fontWeight:700,color:behind?C.red:pct===100?C.green:C.amber}}>{published}/{target} publicados</span>
+            </div>
+            <div style={{background:C.light,borderRadius:20,height:8,overflow:"hidden"}}>
+              <div style={{width:`${pct}%`,height:"100%",background:behind?C.red:pct===100?C.green:C.amber,borderRadius:20,transition:"width .3s"}}/>
+            </div>
+          </div>
+          <div style={{fontSize:12,fontWeight:700,color:behind?C.red:pct===100?C.green:C.amber,flexShrink:0}}>
+            {pct===100?"✅ Meta cumplida":behind?"⚠️ Por debajo":Math.max(0,target-published)+" restantes"}
+          </div>
         </div>
       )}
 
       {/* Bottleneck summary */}
       <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
         {STAGES.map(stage=>{
-          const count=visible.filter(c=>c.stage===stage.id).length;
-          const isHigh=count>=5;
-          const isMed=count>=3&&count<5;
+          const count=cardsInStage(stage.id).length;
+          const isHigh=count>=5;const isMed=count>=3&&count<5;
           return(
             <div key={stage.id} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:20,background:isHigh?"#FEE2E2":isMed?"#FEF9C3":C.light,border:`1px solid ${isHigh?"#FECACA":isMed?"#FDE68A":C.border}`,flexShrink:0}}>
               <span style={{fontSize:13}}>{stage.label.split(" ")[0]}</span>
@@ -550,52 +616,29 @@ function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onM
             onDragOver={e=>{e.preventDefault();e.currentTarget.style.background="#EFF6FF";}}
             onDragLeave={e=>{e.currentTarget.style.background="";}}
             onDrop={e=>{e.currentTarget.style.background="";handleDrop(e,stage.id);}}
-            style={{
-              flex:"0 0 220px",background:C.light,borderRadius:12,padding:12,
-              border:`1px solid ${C.border}`,
-              opacity:(stage.id==="publicado"&&role==="community")?0.6:1,
-              transition:"background .15s",
-            }}>
-            {/* Column header */}
+            style={{flex:"0 0 220px",background:C.light,borderRadius:12,padding:12,border:`1px solid ${C.border}`,opacity:(stage.id==="publicado"&&role==="community")?0.6:1,transition:"background .15s"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
               <div style={{fontSize:13,fontWeight:700,color:C.text}}>{stage.label}</div>
-              <span style={{fontSize:11,fontWeight:700,background:stage.color+"22",color:stage.color,padding:"2px 8px",borderRadius:20}}>
-                {cardsInStage(stage.id).length}
-              </span>
+              <span style={{fontSize:11,fontWeight:700,background:stage.color+"22",color:stage.color,padding:"2px 8px",borderRadius:20}}>{cardsInStage(stage.id).length}</span>
             </div>
             {stage.id==="publicado"&&role==="community"&&(
-              <div style={{fontSize:10,color:C.muted,marginBottom:8,padding:"6px 8px",background:"#F1F5F9",borderRadius:6}}>
-                🔒 Solo admins pueden publicar
-              </div>
+              <div style={{fontSize:10,color:C.muted,marginBottom:8,padding:"6px 8px",background:"#F1F5F9",borderRadius:6}}>🔒 Solo admins</div>
             )}
-            {/* Cards */}
             {cardsInStage(stage.id).map(card=>(
-              <KanbanCard
-                key={card.id}
-                card={card}
-                clients={clients}
-                role={role}
+              <KanbanCard key={card.id} card={card} clients={clients} role={role}
                 isDragging={draggingId===card.id}
-                onDragStart={setDraggingId}
-                onDragEnd={()=>setDraggingId(null)}
-                onMove={onMoveCard}
-                onApprove={id=>onMoveCard(id,"publicado",true)}
-                onMetrics={c=>setMetricsCard(c)}
-                onDelete={onDeleteCard}
-              />
+                onDragStart={setDraggingId} onDragEnd={()=>setDraggingId(null)}
+                onMove={onMoveCard} onApprove={id=>onMoveCard(id,"publicado",true)}
+                onMetrics={c=>setMetricsCard(c)} onDelete={onDeleteCard}/>
             ))}
             {cardsInStage(stage.id).length===0&&(
-              <div style={{textAlign:"center",padding:"24px 10px",color:C.muted,fontSize:12,border:`2px dashed ${C.border}`,borderRadius:8,background:C.bg,transition:"background .15s"}}>
-                Arrastra aquí
-              </div>
+              <div style={{textAlign:"center",padding:"24px 10px",color:C.muted,fontSize:12,border:`2px dashed ${C.border}`,borderRadius:8,background:C.bg}}>Arrastra aquí</div>
             )}
           </div>
         ))}
       </div>
 
-      {/* Modals */}
-      {showAddCard&&<AddCardModal clients={clients} employees={employees} defaultClientId={communityClientId||""} role={role} onSave={card=>{onAddCard(card);setShowAddCard(false);}} onClose={()=>setShowAddCard(false)}/>}
-      {showSetTargets&&<SetTargetsModal clients={clients} targets={targets} month={month} onSave={onSetTargets} onClose={()=>setShowSetTargets(false)}/>}
+      {showAddCard&&<AddCardModal clients={clients} employees={employees} defaultClientId={selectedClient} role={role} onSave={card=>{onAddCard(card);setShowAddCard(false);}} onClose={()=>setShowAddCard(false)}/>}
       {metricsCard&&<MetricsModal card={metricsCard} employees={employees} onSave={m=>{onMetrics(metricsCard,m);setMetricsCard(null);}} onClose={()=>setMetricsCard(null)}/>}
     </div>
   );
