@@ -30,6 +30,7 @@ const STAGES = [
   { id:"brief",      label:"📋 Brief",      color:"#3B82F6", communityCanMove:true  },
   { id:"produccion", label:"🎬 Producción",  color:"#8B5CF6", communityCanMove:true  },
   { id:"edicion",    label:"✂️ Edición",    color:"#F59E0B", communityCanMove:true  },
+  { id:"revision",   label:"🔄 Revisiones", color:"#EC4899", communityCanMove:true  },
   { id:"aprobacion", label:"👁 Aprobación", color:"#EF4444", communityCanMove:false },
   { id:"publicado",  label:"📱 Publicado",  color:"#6B7280", communityCanMove:false },
   { id:"metricas",   label:"📊 Métricas",   color:"#059669", communityCanMove:true  },
@@ -241,13 +242,13 @@ function SetTargetsModal({clients,targets,month,onSave,onClose}){
 
 // ── ADD CARD MODAL ────────────────────────────────────────────────────────────
 function AddCardModal({clients,employees,defaultClientId,role,onSave,onClose}){
-  const activeClients=clients.filter(c=>c.status!=="archived"&&c.status==="active");
+  const activeClients=clients.filter(c=>c.status!=="archived");
   const activeEmps=employees.filter(e=>e.status==="active");
   const[f,sf]=useState({clientId:defaultClientId||"",title:"",editor:"",dueDate:"",platform:"TikTok"});
   const set=(k,v)=>sf(p=>({...p,[k]:v}));
   const save=()=>{
     if(!f.clientId||!f.title.trim())return;
-    onSave({...f,id:"c"+Date.now(),stage:"brief",month:curMonth(),createdAt:NOW.toISOString().slice(0,10),publishDate:null});
+    onSave({...f,id:"c"+Date.now(),stage:"brief",month:curMonth(),createdAt:NOW.toISOString().slice(0,10),publishDate:null,revisionCount:0});
     onClose();
   };
   return(
@@ -375,9 +376,11 @@ function KanbanCard({card,clients,role,onMove,onApprove,onMetrics,onDelete,isDra
       style={{
         background:C.surface,borderRadius:10,padding:14,
         border:`1px solid ${isOverdue?"#FECACA":isMetricas&&unlocked?"#BBF7D0":C.border}`,
-        boxShadow:isDragging?"0 8px 24px rgba(0,0,0,.15)":shadow,
-        marginBottom:10,cursor:"grab",opacity:isDragging?.5:1,
+        boxShadow:isDragging?"0 8px 24px rgba(0,0,0,.2)":shadow,
+        marginBottom:10,cursor:"grab",opacity:isDragging?.3:1,
         borderLeft:`3px solid ${stageInfo?.color||C.border}`,
+        transform:isDragging?"rotate(2deg)":"none",
+        transition:"transform .1s, box-shadow .1s",
       }}>
       {/* Client badge */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -395,6 +398,7 @@ function KanbanCard({card,clients,role,onMove,onApprove,onMetrics,onDelete,isDra
         {card.editor&&<div>✂️ {card.editor}</div>}
         {card.dueDate&&<div>📅 {card.dueDate}</div>}
         {isPublicado&&card.publishDate&&<div>📱 Publicado {card.publishDate}</div>}
+        {(card.revisionCount||0)>0&&<div style={{color:"#EC4899",fontWeight:700}}>🔄 {card.revisionCount} revisión{card.revisionCount>1?"es":""}</div>}
       </div>
 
       {/* Actions */}
@@ -435,7 +439,7 @@ function KanbanCard({card,clients,role,onMove,onApprove,onMetrics,onDelete,isDra
 // ── PIPELINE PAGE ─────────────────────────────────────────────────────────────
 function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onMoveCard,onApproveCard,onMetrics,onDeleteCard,onSetTargets,communityClientId}){
   const month=curMonth();
-  const activeClients=clients.filter(c=>c.status!=="archived"&&c.status==="active");
+  const activeClients=clients.filter(c=>c.status!=="archived");
   const [draggingId,setDraggingId]=useState(null);
   const [showAddCard,setShowAddCard]=useState(false);
   const [showSetTargets,setShowSetTargets]=useState(false);
@@ -513,16 +517,35 @@ function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onM
         </div>
       )}
 
+      {/* Bottleneck summary */}
+      <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
+        {STAGES.map(stage=>{
+          const count=visible.filter(c=>c.stage===stage.id).length;
+          const isHigh=count>=5;
+          const isMed=count>=3&&count<5;
+          return(
+            <div key={stage.id} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:20,background:isHigh?"#FEE2E2":isMed?"#FEF9C3":C.light,border:`1px solid ${isHigh?"#FECACA":isMed?"#FDE68A":C.border}`,flexShrink:0}}>
+              <span style={{fontSize:13}}>{stage.label.split(" ")[0]}</span>
+              <span style={{fontSize:12,fontWeight:700,color:isHigh?C.red:isMed?C.amber:C.muted}}>{count}</span>
+              <span style={{fontSize:11,color:C.muted}}>{stage.label.split(" ").slice(1).join(" ")}</span>
+              {isHigh&&<span style={{fontSize:10,color:C.red,fontWeight:700}}>⚠️ cuello</span>}
+            </div>
+          );
+        })}
+      </div>
+
       {/* Kanban */}
       <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:12}}>
         {STAGES.map(stage=>(
           <div key={stage.id}
-            onDragOver={e=>e.preventDefault()}
-            onDrop={e=>handleDrop(e,stage.id)}
+            onDragOver={e=>{e.preventDefault();e.currentTarget.style.background="#EFF6FF";}}
+            onDragLeave={e=>{e.currentTarget.style.background="";}}
+            onDrop={e=>{e.currentTarget.style.background="";handleDrop(e,stage.id);}}
             style={{
               flex:"0 0 220px",background:C.light,borderRadius:12,padding:12,
               border:`1px solid ${C.border}`,
               opacity:(stage.id==="publicado"&&role==="community")?0.6:1,
+              transition:"background .15s",
             }}>
             {/* Column header */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
@@ -553,7 +576,7 @@ function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onM
               />
             ))}
             {cardsInStage(stage.id).length===0&&(
-              <div style={{textAlign:"center",padding:"20px 10px",color:C.muted,fontSize:12,border:`2px dashed ${C.border}`,borderRadius:8}}>
+              <div style={{textAlign:"center",padding:"24px 10px",color:C.muted,fontSize:12,border:`2px dashed ${C.border}`,borderRadius:8,background:C.bg,transition:"background .15s"}}>
                 Arrastra aquí
               </div>
             )}
@@ -1072,6 +1095,16 @@ export default function App(){
   useEffect(()=>{store.set("tch_cards_v1",cards);},[cards]);
   useEffect(()=>{store.set("tch_targets_v1",targets);},[targets]);
   useEffect(()=>{store.set("tch_role",role);},[role]);
+  useEffect(()=>{
+    const h=(e)=>{
+      if(e.key==="tch_cards_v1"   &&e.newValue)setCards(JSON.parse(e.newValue));
+      if(e.key==="tch_videos_v3"  &&e.newValue)setVideos(JSON.parse(e.newValue));
+      if(e.key==="tch_clients_v3" &&e.newValue)setClients(JSON.parse(e.newValue));
+      if(e.key==="tch_emps_v1"    &&e.newValue)setEmps(JSON.parse(e.newValue));
+    };
+    window.addEventListener("storage",h);
+    return()=>window.removeEventListener("storage",h);
+  },[]);
 
   const addVideo=useCallback(v=>setVideos(p=>[...p,v]),[]);
   const logout=()=>{setRole(null);store.set("tch_role",null);setComClient(null);};
@@ -1083,8 +1116,8 @@ export default function App(){
       if(c.id!==cardId)return c;
       const updated={...c,stage:stageId};
       if(isPublish||stageId==="publicado")updated.publishDate=NOW.toISOString().slice(0,10);
-      // Auto-move to metricas after publicado (system handles 7-day lock via render)
       if(stageId==="publicado")updated.stage="metricas";
+      if(stageId==="revision")updated.revisionCount=(c.revisionCount||0)+1;
       return updated;
     }));
   },[]);
@@ -1111,7 +1144,7 @@ export default function App(){
 
   // ── COMMUNITY VIEW ──
   if(role==="community"){
-    const activeClients=clients.filter(c=>c.status==="active");
+    const activeClients=clients.filter(c=>c.status!=="archived");
     if(!comClient){
       return(
         <div style={{minHeight:"100vh",background:C.bg,fontFamily:"system-ui,sans-serif"}}>
