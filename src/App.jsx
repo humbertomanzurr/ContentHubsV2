@@ -367,6 +367,8 @@ function KanbanCard({card,clients,role,onMove,onApprove,onMetrics,onDelete,isDra
   const days=daysUntil(card);
   const isOverdue=card.dueDate&&new Date(card.dueDate)<NOW&&card.stage!=="metricas";
   const stageInfo=STAGES.find(s=>s.id===card.stage);
+  const [confirmDel,setConfirmDel]=useState(false);
+  const canDelete=role==="admin"||(role==="community"&&card.stage==="brief");
 
   return(
     <div
@@ -427,9 +429,16 @@ function KanbanCard({card,clients,role,onMove,onApprove,onMetrics,onDelete,isDra
             📊 Métricas
           </button>
         )}
-        {/* Admin delete */}
-        {role==="admin"&&(
-          <button onClick={()=>onDelete(card.id)} style={{fontSize:11,padding:"4px 10px",background:"#FEE2E2",border:"1px solid #FECACA",borderRadius:6,cursor:"pointer",color:C.red}}>🗑</button>
+        {/* Delete with confirmation */}
+        {canDelete&&!confirmDel&&(
+          <button onClick={()=>setConfirmDel(true)} style={{fontSize:11,padding:"4px 10px",background:"#FEE2E2",border:"1px solid #FECACA",borderRadius:6,cursor:"pointer",color:C.red}}>🗑</button>
+        )}
+        {canDelete&&confirmDel&&(
+          <div style={{display:"flex",gap:4,alignItems:"center",marginTop:4}}>
+            <span style={{fontSize:10,color:C.red,fontWeight:700}}>¿Eliminar?</span>
+            <button onClick={()=>onDelete(card.id)} style={{fontSize:10,padding:"3px 8px",background:C.red,border:"none",borderRadius:5,cursor:"pointer",color:"#fff",fontWeight:700}}>Sí</button>
+            <button onClick={()=>setConfirmDel(false)} style={{fontSize:10,padding:"3px 8px",background:C.light,border:`1px solid ${C.border}`,borderRadius:5,cursor:"pointer",color:C.text}}>No</button>
+          </div>
         )}
       </div>
     </div>
@@ -1095,6 +1104,7 @@ export default function App(){
   useEffect(()=>{store.set("tch_cards_v1",cards);},[cards]);
   useEffect(()=>{store.set("tch_targets_v1",targets);},[targets]);
   useEffect(()=>{store.set("tch_role",role);},[role]);
+  // Cross-tab sync via storage event (same browser, different tabs)
   useEffect(()=>{
     const h=(e)=>{
       if(e.key==="tch_cards_v1"   &&e.newValue)setCards(JSON.parse(e.newValue));
@@ -1104,6 +1114,17 @@ export default function App(){
     };
     window.addEventListener("storage",h);
     return()=>window.removeEventListener("storage",h);
+  },[]);
+
+  // Polling fallback — re-reads localStorage every 4 seconds to catch any missed updates
+  useEffect(()=>{
+    const poll=setInterval(()=>{
+      const c=store.get("tch_cards_v1");   if(c)setCards(p=>JSON.stringify(p)!==JSON.stringify(c)?c:p);
+      const v=store.get("tch_videos_v3");  if(v)setVideos(p=>JSON.stringify(p)!==JSON.stringify(v)?v:p);
+      const cl=store.get("tch_clients_v3");if(cl)setClients(p=>JSON.stringify(p)!==JSON.stringify(cl)?cl:p);
+      const e=store.get("tch_emps_v1");    if(e)setEmps(p=>JSON.stringify(p)!==JSON.stringify(e)?e:p);
+    },4000);
+    return()=>clearInterval(poll);
   },[]);
 
   const addVideo=useCallback(v=>setVideos(p=>[...p,v]),[]);
@@ -1187,7 +1208,7 @@ export default function App(){
             clients={clients} employees={employees} cards={cards} videos={videos}
             targets={targets} role="community" communityClientId={comClient}
             onAddCard={addCard} onMoveCard={moveCard} onApproveCard={()=>{}}
-            onMetrics={submitMetrics} onDeleteCard={()=>{}} onSetTargets={()=>{}}
+            onMetrics={submitMetrics} onDeleteCard={deleteCard} onSetTargets={()=>{}}
           />
         </div>
       </div>
