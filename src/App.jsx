@@ -451,6 +451,9 @@ function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onM
   const activeClients=clients.filter(c=>c.status!=="archived");
   const [selectedClient,setSelectedClient]=useState(communityClientId||null);
   const [showSetTargets,setShowSetTargets]=useState(false);
+  const [draggingId,setDraggingId]=useState(null);
+  const [showAddCard,setShowAddCard]=useState(false);
+  const [metricsCard,setMetricsCard]=useState(null);
 
   const publishedThisMonth=clientId=>
     videos.filter(v=>v.clientId===clientId&&v.publishDate?.startsWith(month)).length;
@@ -537,9 +540,6 @@ function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onM
   // ── CLIENT KANBAN BOARD ────────────────────────────────────────────────────
   const selClient=clients.find(c=>c.id===selectedClient);
   const monthCards=cards.filter(c=>c.clientId===selectedClient&&c.month===month);
-  const [draggingId,setDraggingId]=useState(null);
-  const [showAddCard,setShowAddCard]=useState(false);
-  const [metricsCard,setMetricsCard]=useState(null);
   const target=targets[month]?.[selectedClient]||0;
   const published=publishedThisMonth(selectedClient);
   const pct=target>0?Math.min(100,Math.round(published/target*100)):null;
