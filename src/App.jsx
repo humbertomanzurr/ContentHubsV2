@@ -1,184 +1,390 @@
-import { useState, useEffect, useCallback } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis, LineChart, Line } from "recharts";
 
 // ── AUTH ───────────────────────────────────────────────────────────────────────
-const CREDS = { email: "humberto@revolabsmedia.com", password: "Revo2026!" };
+const USERS = {
+  admin:     { email:"humberto@revolabsmedia.com", password:"Revo2026!",     role:"admin" },
+  community: { email:"community@revolabsmedia.com", password:"Community2026!", role:"community" },
+};
 
 // ── TAXONOMY ───────────────────────────────────────────────────────────────────
-const HOOKS = ["Impacto","Curiosidad","Historia","Transformacion","POV","Deseo","Antes/Despues","Pregunta","Estadistica","Problema","Error","Controversia","Comparacion","Autoridad","Miedo","Reto"];
-const FORMATS = ["Demostracion de Producto","Hablando a Camara","Tutorial","Tendencia","UGC","Voz en Off","Fundador","Podcast","Entrevista en la Calle","Estilo de Vida","Meme","Educativo","Detras de Camaras","Caso de Estudio"];
-const CTAS = ["Seguir","Guardar","Comentar","Compartir","Visitar Perfil","Comprar","Mensaje Directo","Link en Bio","Sin CTA"];
+const HOOKS     = ["Impacto","Curiosidad","Historia","Transformacion","POV","Deseo","Antes/Despues","Pregunta","Estadistica","Problema","Error","Controversia","Comparacion","Autoridad","Miedo","Reto"];
+const FORMATS   = ["Demostracion de Producto","Hablando a Camara","Tutorial","Tendencia","UGC","Voz en Off","Fundador","Podcast","Entrevista en la Calle","Estilo de Vida","Meme","Educativo","Detras de Camaras","Caso de Estudio"];
+const CTAS      = ["Seguir","Guardar","Comentar","Compartir","Visitar Perfil","Comprar","Mensaje Directo","Link en Bio","Sin CTA"];
 const PLATFORMS = ["TikTok","Instagram Reels","YouTube Shorts","Facebook","LinkedIn"];
-const TRIGGERS = ["Sorprendente","Inspirador","Identificable","Gracioso","Educativo","Curiosidad","Satisfaccion","Miedo","Urgencia","Enojo","Asombro","Asco"];
-const PILLARS = ["Entretenimiento","Educacion","Conversion","Comunidad","Reconocimiento de Marca","Retencion"];
+const TRIGGERS  = ["Sorprendente","Inspirador","Identificable","Gracioso","Educativo","Curiosidad","Satisfaccion","Miedo","Urgencia","Enojo","Asombro","Asco"];
+const PILLARS   = ["Entretenimiento","Educacion","Conversion","Comunidad","Reconocimiento de Marca","Retencion"];
+
+const DATE_RANGES = [
+  { value:"all",    label:"Todo el tiempo" },
+  { value:"year",   label:"Este año" },
+  { value:"90days", label:"Últimos 90 días" },
+  { value:"30days", label:"Últimos 30 días" },
+  { value:"month",  label:"Este mes" },
+  { value:"week",   label:"Esta semana" },
+];
 
 // ── SEED DATA ──────────────────────────────────────────────────────────────────
 const SEED_CLIENTS = [
-  { id:"tony",    name:"Tony",          retainer:89000,   industry:"Retail",       status:"active", am:"Sofia", goal:"Brand awareness + crecimiento de seguidores" },
-  { id:"unitam",  name:"Unitam",        retainer:40000,   industry:"Moda",         status:"active", am:"Sofia", goal:"Engagement y comunidad" },
-  { id:"solanum", name:"Solanum",       retainer:100000,  industry:"Fitness",      status:"active", am:"Sofia", goal:"Brand awareness - debut" },
-  { id:"celularte",name:"Celularte",    retainer:40000,   industry:"Retail",       status:"pending",am:"Sofia", goal:"Ventas y tráfico" },
-  { id:"carso",   name:"Grupo Carso",   retainer:1300000, industry:"Conglomerado", status:"pending",am:"Sofia", goal:"Presencia digital" },
-  { id:"fredinero",name:"Fredinero",    retainer:null,    industry:"Fintech",      status:"pending",am:"Sofia", goal:"Generación de leads" },
-  { id:"matera",  name:"Matera Motors", retainer:null,    industry:"Automotriz",   status:"pending",am:"Sofia", goal:"Awareness" },
+  { id:"tony",     name:"Tony",          industry:"Retail",       status:"active", am:"Sofia",  goal:"Brand awareness + crecimiento de seguidores" },
+  { id:"unitam",   name:"Unitam",        industry:"Moda",         status:"active", am:"Sofia",  goal:"Engagement y comunidad" },
+  { id:"solanum",  name:"Solanum",       industry:"Fitness",      status:"active", am:"Sofia",  goal:"Brand awareness — debut" },
+  { id:"celularte",name:"Celularte",     industry:"Retail",       status:"pending",am:"Sofia",  goal:"Ventas y tráfico" },
+  { id:"carso",    name:"Grupo Carso",   industry:"Conglomerado", status:"pending",am:"Sofia",  goal:"Presencia digital" },
+  { id:"fredinero",name:"Fredinero",     industry:"Fintech",      status:"pending",am:"Sofia",  goal:"Generación de leads" },
+  { id:"matera",   name:"Matera Motors", industry:"Automotriz",   status:"pending",am:"Sofia",  goal:"Awareness" },
 ];
 
 const SEED_VIDEOS = [
-  { id:"v001",clientId:"tony",   title:"TOP INESPERADO",             platform:"TikTok",publishDate:"2026-06-23",creator:"Álvaro Salinas",      editor:"Paco",  cm:"Itzel",  hook:"Impacto",      format:"Demostracion de Producto",cta:"Seguir",       trigger:"Sorprendente",pillar:"Entretenimiento",      pauta:800, views:56000,likes:2100,comments:340,shares:890, saves:760,duration:45,watchTimeAvg:28,followers:520 },
-  { id:"v002",clientId:"tony",   title:"COLECCIÓN MUNDIAL",          platform:"TikTok",publishDate:"2026-06-25",creator:"Santiago Paniagua",   editor:"Paco",  cm:"Itzel",  hook:"Impacto",      format:"Tendencia",               cta:"Compartir",    trigger:"Inspirador",  pillar:"Entretenimiento",      pauta:800, views:53000,likes:1980,comments:290,shares:1200,saves:430,duration:38,watchTimeAvg:24,followers:490 },
-  { id:"v003",clientId:"tony",   title:"HAÚL ASMR",                  platform:"TikTok",publishDate:"2026-06-13",creator:"Ivanna Paniagua",     editor:"Paco",  cm:"Paula",  hook:"Impacto",      format:"Demostracion de Producto",cta:"Guardar",      trigger:"Satisfaccion",pillar:"Entretenimiento",      pauta:714, views:33000,likes:1450,comments:210,shares:340, saves:890,duration:52,watchTimeAvg:31,followers:310 },
-  { id:"v004",clientId:"tony",   title:"SEMANA SMARTY",              platform:"TikTok",publishDate:"2026-06-22",creator:"Álvaro Salinas",      editor:"Danny", cm:"Itzel",  hook:"Impacto",      format:"Hablando a Camara",       cta:"Seguir",       trigger:"Curiosidad",  pillar:"Educacion",            pauta:840, views:32000,likes:1230,comments:450,shares:280, saves:340,duration:41,watchTimeAvg:26,followers:290 },
-  { id:"v005",clientId:"tony",   title:"Lo hicimos real",            platform:"TikTok",publishDate:"2026-06-03",creator:"Efrén",               editor:"Danny", cm:"Itzel",  hook:"Transformacion",format:"Tutorial",                cta:"Guardar",      trigger:"Inspirador",  pillar:"Educacion",            pauta:410, views:27300,likes:980, comments:320,shares:180, saves:720,duration:58,watchTimeAvg:34,followers:250 },
-  { id:"v006",clientId:"tony",   title:"Vibras de verano",           platform:"TikTok",publishDate:"2026-06-05",creator:"Ivanna Paniagua",     editor:"Danny", cm:"Paula",  hook:"Deseo",        format:"Voz en Off",              cta:"Seguir",       trigger:"Identificable",pillar:"Entretenimiento",      pauta:410, views:25000,likes:920, comments:180,shares:420, saves:290,duration:30,watchTimeAvg:19,followers:230 },
-  { id:"v007",clientId:"tony",   title:"REGALO PARA PAPÁ",           platform:"TikTok",publishDate:"2026-06-19",creator:"Álvaro Salinas",      editor:"Danny", cm:"Itzel",  hook:"Antes/Despues", format:"Tutorial",               cta:"Comprar",      trigger:"Deseo",       pillar:"Conversion",           pauta:400, views:20000,likes:760, comments:290,shares:120, saves:480,duration:44,watchTimeAvg:22,followers:180 },
-  { id:"v008",clientId:"tony",   title:"PARA MI PAPÁ ES",            platform:"TikTok",publishDate:"2026-06-21",creator:"Hugo",                editor:"Danny", cm:"Itzel",  hook:"Deseo",        format:"Tendencia",               cta:"Sin CTA",      trigger:"Identificable",pillar:"Entretenimiento",      pauta:400, views:7461, likes:890, comments:340,shares:120, saves:220,duration:22,watchTimeAvg:14,followers:70  },
-  { id:"v009",clientId:"tony",   title:"EXPERTONY CONTESTA P.3",     platform:"TikTok",publishDate:"2026-06-29",creator:"Álvaro Salinas",      editor:"Danny", cm:"Itzel",  hook:"Pregunta",     format:"Hablando a Camara",       cta:"Comentar",     trigger:"Curiosidad",  pillar:"Comunidad",            pauta:0,   views:849,  likes:45,  comments:89, shares:12,  saves:23, duration:35,watchTimeAvg:18,followers:8   },
-  { id:"v010",clientId:"unitam", title:"¡Ya llego a Unitam!",        platform:"TikTok",publishDate:"2026-06-15",creator:"Álvaro Salinas",      editor:"Danny", cm:"Ivanna", hook:"Impacto",      format:"Hablando a Camara",       cta:"Visitar Perfil",trigger:"Sorprendente",pillar:"Entretenimiento",      pauta:800, views:46000,likes:1780,comments:390,shares:650, saves:420,duration:28,watchTimeAvg:19,followers:420 },
-  { id:"v011",clientId:"unitam", title:"Playeras nuevas",            platform:"TikTok",publishDate:"2026-06-12",creator:"Paula, Cristian, Paco",editor:"Danny", cm:"Ivanna", hook:"POV",          format:"Tendencia",               cta:"Compartir",    trigger:"Identificable",pillar:"Entretenimiento",      pauta:800, views:40000,likes:1560,comments:280,shares:890, saves:340,duration:18,watchTimeAvg:14,followers:370 },
-  { id:"v012",clientId:"unitam", title:"Prompt Guion Viral ChatGPT", platform:"TikTok",publishDate:"2026-06-29",creator:"Galilea Espinoza",    editor:"Paco",  cm:"Ivanna", hook:"Curiosidad",   format:"Hablando a Camara",       cta:"Guardar",      trigger:"Educativo",   pillar:"Educacion",            pauta:0,   views:12000,likes:580, comments:210,shares:180, saves:890,duration:45,watchTimeAvg:32,followers:110 },
-  { id:"v013",clientId:"unitam", title:"1, 2, 3... ¡UNITAM!",        platform:"TikTok",publishDate:"2026-06-18",creator:"Mariana García",      editor:"Paco",  cm:"Ivanna", hook:"Historia",     format:"Tendencia",               cta:"Seguir",       trigger:"Gracioso",    pillar:"Entretenimiento",      pauta:200, views:8795, likes:340, comments:120,shares:89,  saves:67, duration:15,watchTimeAvg:12,followers:82  },
-  { id:"v014",clientId:"unitam", title:"Día del padre",              platform:"TikTok",publishDate:"2026-06-21",creator:"Álvaro Salinas",      editor:"Danny", cm:"Ivanna", hook:"Deseo",        format:"Hablando a Camara",       cta:"Compartir",    trigger:"Identificable",pillar:"Entretenimiento",      pauta:200, views:7958, likes:310, comments:98, shares:120, saves:89, duration:22,watchTimeAvg:15,followers:74  },
-  { id:"v015",clientId:"unitam", title:"Tiempo Récord",              platform:"TikTok",publishDate:"2026-06-23",creator:"Mariana García",      editor:"Paco",  cm:"Ivanna", hook:"Impacto",      format:"Tutorial",                cta:"Guardar",      trigger:"Sorprendente",pillar:"Educacion",            pauta:200, views:719,  likes:34,  comments:18, shares:8,   saves:45, duration:30,watchTimeAvg:12,followers:7   },
-  { id:"v016",clientId:"solanum",title:"This is Solanum",            platform:"TikTok",publishDate:"2026-06-16",creator:"Ana Paula y Sofia",   editor:"Danny", cm:"Larissa",hook:"Historia",     format:"Hablando a Camara",       cta:"Seguir",       trigger:"Inspirador",  pillar:"Reconocimiento de Marca",pauta:700, views:20000,likes:780, comments:210,shares:340, saves:290,duration:42,watchTimeAvg:26,followers:188 },
+  { id:"v001",clientId:"tony",   title:"TOP INESPERADO",             platform:"TikTok",publishDate:"2026-06-23",creator:"Álvaro Salinas",       editor:"Paco",  cm:"Itzel",  hook:"Impacto",      format:"Demostracion de Producto",cta:"Seguir",        trigger:"Sorprendente", pillar:"Entretenimiento",       pauta:800, views:56000,likes:2100,comments:340,shares:890, saves:760,duration:45,watchTimeAvg:28,followers:520, paraTi:84, siguiendo:11, busqueda:5 },
+  { id:"v002",clientId:"tony",   title:"COLECCIÓN MUNDIAL",          platform:"TikTok",publishDate:"2026-06-25",creator:"Santiago Paniagua",    editor:"Paco",  cm:"Itzel",  hook:"Impacto",      format:"Tendencia",               cta:"Compartir",     trigger:"Inspirador",   pillar:"Entretenimiento",       pauta:800, views:53000,likes:1980,comments:290,shares:1200,saves:430,duration:38,watchTimeAvg:24,followers:490, paraTi:81, siguiendo:13, busqueda:6 },
+  { id:"v003",clientId:"tony",   title:"HAÚL ASMR",                  platform:"TikTok",publishDate:"2026-06-13",creator:"Ivanna Paniagua",      editor:"Paco",  cm:"Paula",  hook:"Impacto",      format:"Demostracion de Producto",cta:"Guardar",       trigger:"Satisfaccion", pillar:"Entretenimiento",       pauta:714, views:33000,likes:1450,comments:210,shares:340, saves:890,duration:52,watchTimeAvg:31,followers:310, paraTi:76, siguiendo:16, busqueda:8 },
+  { id:"v004",clientId:"tony",   title:"SEMANA SMARTY",              platform:"TikTok",publishDate:"2026-06-22",creator:"Álvaro Salinas",       editor:"Danny", cm:"Itzel",  hook:"Impacto",      format:"Hablando a Camara",       cta:"Seguir",        trigger:"Curiosidad",   pillar:"Educacion",             pauta:840, views:32000,likes:1230,comments:450,shares:280, saves:340,duration:41,watchTimeAvg:26,followers:290, paraTi:72, siguiendo:20, busqueda:8 },
+  { id:"v005",clientId:"tony",   title:"Lo hicimos real",            platform:"TikTok",publishDate:"2026-06-03",creator:"Efrén",                editor:"Danny", cm:"Itzel",  hook:"Transformacion",format:"Tutorial",                cta:"Guardar",       trigger:"Inspirador",   pillar:"Educacion",             pauta:410, views:27300,likes:980, comments:320,shares:180, saves:720,duration:58,watchTimeAvg:34,followers:250, paraTi:68, siguiendo:22, busqueda:10 },
+  { id:"v006",clientId:"tony",   title:"Vibras de verano",           platform:"TikTok",publishDate:"2026-06-05",creator:"Ivanna Paniagua",      editor:"Danny", cm:"Paula",  hook:"Deseo",        format:"Voz en Off",              cta:"Seguir",        trigger:"Identificable",pillar:"Entretenimiento",       pauta:410, views:25000,likes:920, comments:180,shares:420, saves:290,duration:30,watchTimeAvg:19,followers:230, paraTi:65, siguiendo:24, busqueda:11 },
+  { id:"v007",clientId:"tony",   title:"REGALO PARA PAPÁ",           platform:"TikTok",publishDate:"2026-06-19",creator:"Álvaro Salinas",       editor:"Danny", cm:"Itzel",  hook:"Antes/Despues", format:"Tutorial",               cta:"Comprar",       trigger:"Deseo",        pillar:"Conversion",            pauta:400, views:20000,likes:760, comments:290,shares:120, saves:480,duration:44,watchTimeAvg:22,followers:180, paraTi:61, siguiendo:28, busqueda:11 },
+  { id:"v008",clientId:"tony",   title:"PARA MI PAPÁ ES",            platform:"TikTok",publishDate:"2026-06-21",creator:"Hugo",                 editor:"Danny", cm:"Itzel",  hook:"Deseo",        format:"Tendencia",               cta:"Sin CTA",       trigger:"Identificable",pillar:"Entretenimiento",       pauta:400, views:7461, likes:890, comments:340,shares:120, saves:220,duration:22,watchTimeAvg:14,followers:70,  paraTi:42, siguiendo:48, busqueda:10 },
+  { id:"v009",clientId:"tony",   title:"EXPERTONY CONTESTA P.3",     platform:"TikTok",publishDate:"2026-06-29",creator:"Álvaro Salinas",       editor:"Danny", cm:"Itzel",  hook:"Pregunta",     format:"Hablando a Camara",       cta:"Comentar",      trigger:"Curiosidad",   pillar:"Comunidad",             pauta:0,   views:849,  likes:45,  comments:89, shares:12,  saves:23, duration:35,watchTimeAvg:18,followers:8,   paraTi:38, siguiendo:55, busqueda:7  },
+  { id:"v010",clientId:"unitam", title:"¡Ya llego a Unitam!",        platform:"TikTok",publishDate:"2026-06-15",creator:"Álvaro Salinas",       editor:"Danny", cm:"Ivanna", hook:"Impacto",      format:"Hablando a Camara",       cta:"Visitar Perfil",trigger:"Sorprendente", pillar:"Entretenimiento",       pauta:800, views:46000,likes:1780,comments:390,shares:650, saves:420,duration:28,watchTimeAvg:19,followers:420, paraTi:79, siguiendo:15, busqueda:6  },
+  { id:"v011",clientId:"unitam", title:"Playeras nuevas",            platform:"TikTok",publishDate:"2026-06-12",creator:"Paula, Cristian, Paco",editor:"Danny", cm:"Ivanna", hook:"POV",          format:"Tendencia",               cta:"Compartir",     trigger:"Identificable",pillar:"Entretenimiento",       pauta:800, views:40000,likes:1560,comments:280,shares:890, saves:340,duration:18,watchTimeAvg:14,followers:370, paraTi:77, siguiendo:17, busqueda:6  },
+  { id:"v012",clientId:"unitam", title:"Prompt Guion Viral ChatGPT", platform:"TikTok",publishDate:"2026-06-29",creator:"Galilea Espinoza",     editor:"Paco",  cm:"Ivanna", hook:"Curiosidad",   format:"Hablando a Camara",       cta:"Guardar",       trigger:"Educativo",    pillar:"Educacion",             pauta:0,   views:12000,likes:580, comments:210,shares:180, saves:890,duration:45,watchTimeAvg:32,followers:110, paraTi:88, siguiendo:8,  busqueda:4  },
+  { id:"v013",clientId:"unitam", title:"1, 2, 3... ¡UNITAM!",        platform:"TikTok",publishDate:"2026-06-18",creator:"Mariana García",       editor:"Paco",  cm:"Ivanna", hook:"Historia",     format:"Tendencia",               cta:"Seguir",        trigger:"Gracioso",     pillar:"Entretenimiento",       pauta:200, views:8795, likes:340, comments:120,shares:89,  saves:67, duration:15,watchTimeAvg:12,followers:82,  paraTi:55, siguiendo:36, busqueda:9  },
+  { id:"v014",clientId:"unitam", title:"Día del padre",              platform:"TikTok",publishDate:"2026-06-21",creator:"Álvaro Salinas",       editor:"Danny", cm:"Ivanna", hook:"Deseo",        format:"Hablando a Camara",       cta:"Compartir",     trigger:"Identificable",pillar:"Entretenimiento",       pauta:200, views:7958, likes:310, comments:98, shares:120, saves:89, duration:22,watchTimeAvg:15,followers:74,  paraTi:50, siguiendo:40, busqueda:10 },
+  { id:"v015",clientId:"unitam", title:"Tiempo Récord",              platform:"TikTok",publishDate:"2026-06-23",creator:"Mariana García",       editor:"Paco",  cm:"Ivanna", hook:"Impacto",      format:"Tutorial",                cta:"Guardar",       trigger:"Sorprendente", pillar:"Educacion",             pauta:200, views:719,  likes:34,  comments:18, shares:8,   saves:45, duration:30,watchTimeAvg:12,followers:7,   paraTi:31, siguiendo:58, busqueda:11 },
+  { id:"v016",clientId:"solanum",title:"This is Solanum",            platform:"TikTok",publishDate:"2026-06-16",creator:"Ana Paula y Sofia",    editor:"Danny", cm:"Larissa",hook:"Historia",     format:"Hablando a Camara",       cta:"Seguir",        trigger:"Inspirador",   pillar:"Reconocimiento de Marca",pauta:700, views:20000,likes:780, comments:210,shares:340, saves:290,duration:42,watchTimeAvg:26,followers:188, paraTi:70, siguiendo:22, busqueda:8  },
 ];
 
 // ── HELPERS ────────────────────────────────────────────────────────────────────
-const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1)+"M" : n >= 1000 ? (n/1000).toFixed(0)+"K" : String(n||0);
-const engRate = v => v.views > 0 ? (((v.likes+v.comments+v.shares+v.saves)/v.views)*100).toFixed(1)+"%" : "—";
-const roiStr = v => v.pauta > 0 && v.views > 0 ? "$"+(v.pauta/v.views*1000).toFixed(2)+"/1K" : v.pauta === 0 ? "Orgánico" : "—";
-const cVids = (videos, id) => videos.filter(v => v.clientId === id);
-const totViews = vs => vs.reduce((s,v) => s+v.views, 0);
-const totPauta = vs => vs.reduce((s,v) => s+v.pauta, 0);
-const avgEngStr = vs => vs.length ? (vs.reduce((s,v) => s+(v.views>0?(v.likes+v.comments+v.shares+v.saves)/v.views:0),0)/vs.length*100).toFixed(1)+"%" : "—";
-const hookChart = vs => {
+const fmt    = n => n >= 1000000 ? (n/1000000).toFixed(1)+"M" : n >= 1000 ? (n/1000).toFixed(0)+"K" : String(n||0);
+const pct    = n => n != null ? n+"%" : "—";
+const eng    = v => v.views > 0 ? (((v.likes+v.comments+v.shares+v.saves)/v.views)*100).toFixed(1)+"%" : "—";
+const roiStr = v => v.pauta > 0 && v.views > 0 ? "$"+(v.pauta/v.views*1000).toFixed(2)+"/1K" : v.pauta === 0 ? "Orgánico 🌱" : "—";
+const cVids  = (vs, id) => vs.filter(v => v.clientId === id);
+const totV   = vs => vs.reduce((s,v) => s+v.views, 0);
+const totP   = vs => vs.reduce((s,v) => s+v.pauta, 0);
+const avgE   = vs => vs.length ? (vs.reduce((s,v) => s+(v.views>0?(v.likes+v.comments+v.shares+v.saves)/v.views:0),0)/vs.length*100).toFixed(1)+"%" : "—";
+const avgParaTi = vs => { const w = vs.filter(v => v.paraTi != null); return w.length ? Math.round(w.reduce((s,v)=>s+v.paraTi,0)/w.length)+"%" : "—"; };
+
+const groupBy = (vs, key) => {
   const m = {};
-  vs.forEach(v => { if(!m[v.hook]) m[v.hook]={n:0,s:0}; m[v.hook].n++; m[v.hook].s+=v.views; });
-  return Object.entries(m).map(([h,d]) => ({name:h, avg:Math.round(d.s/d.n), n:d.n})).sort((a,b) => b.avg-a.avg);
+  vs.forEach(v => { if(!v[key]) return; if(!m[v[key]]) m[v[key]]={n:0,s:0}; m[v[key]].n++; m[v[key]].s+=v.views; });
+  return Object.entries(m).map(([k,d]) => ({name:k, avg:Math.round(d.s/d.n), n:d.n})).sort((a,b) => b.avg-a.avg);
 };
 
-// ── COLORS ─────────────────────────────────────────────────────────────────────
-const gold="#D4A017", dark0="#07090F", dark1="#0D1320", dark2="#141D2E", dark3="#1A2438";
-const muted="#64748B", muted2="#94A3B8", green="#22C55E", text="#E2E8F0";
+const filterByDate = (videos, range) => {
+  if (range === "all") return videos;
+  const now = new Date("2026-07-21");
+  let start;
+  if (range === "year")   start = new Date("2026-01-01");
+  if (range === "90days") start = new Date(now - 90*864e5);
+  if (range === "30days") start = new Date(now - 30*864e5);
+  if (range === "month")  start = new Date("2026-07-01");
+  if (range === "week")   start = new Date(now - 7*864e5);
+  return videos.filter(v => new Date(v.publishDate) >= start);
+};
+
+const teamStats = (videos) => {
+  const roles = { creator:{}, editor:{}, cm:{} };
+  videos.forEach(v => {
+    [["creator",v.creator],["editor",v.editor],["cm",v.cm]].forEach(([role,name]) => {
+      if (!name) return;
+      if (!roles[role][name]) roles[role][name]={videos:[],name,role};
+      roles[role][name].videos.push(v);
+    });
+  });
+  const rank = obj => Object.values(obj).map(p => ({
+    ...p,
+    count: p.videos.length,
+    avgViews: Math.round(p.videos.reduce((s,v)=>s+v.views,0)/p.videos.length),
+    topVideo: [...p.videos].sort((a,b)=>b.views-a.views)[0],
+  })).sort((a,b) => b.topVideo.views - a.topVideo.views);
+  return { creators: rank(roles.creator), editors: rank(roles.editor), cms: rank(roles.cm) };
+};
 
 // ── STORAGE ────────────────────────────────────────────────────────────────────
 const store = {
-  get: key => { try { const v=localStorage.getItem(key); return v?JSON.parse(v):null; } catch { return null; } },
-  set: (key,val) => { try { localStorage.setItem(key,JSON.stringify(val)); } catch {} },
+  get:  k    => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch { return null; } },
+  set:  (k,v)=> { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} },
 };
 
-// ── COMPONENTS ─────────────────────────────────────────────────────────────────
-function Tag({ children, color="#D4A017" }) {
-  return <span style={{display:"inline-block",padding:"2px 8px",borderRadius:4,fontSize:11,fontWeight:700,background:color+"22",color,marginRight:4,marginBottom:2}}>{children}</span>;
-}
+// ── DESIGN TOKENS ─────────────────────────────────────────────────────────────
+const C = {
+  bg:      "#F8FAFC",
+  surface: "#FFFFFF",
+  border:  "#E2E8F0",
+  text:    "#0F172A",
+  muted:   "#64748B",
+  light:   "#F1F5F9",
+  accent:  "#2563EB",
+  gold:    "#D97706",
+  green:   "#059669",
+  red:     "#DC2626",
+  amber:   "#F59E0B",
+  sidebar: "#0F172A",
+  sideGold:"#F59E0B",
+  sideText:"#CBD5E1",
+  sideMuted:"#475569",
+};
 
-function Kpi({ v, l }) {
+const shadow = "0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)";
+const shadowMd = "0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04)";
+
+// ── SHARED UI ─────────────────────────────────────────────────────────────────
+const Tag = ({children, color=C.gold}) => (
+  <span style={{display:"inline-block",padding:"2px 8px",borderRadius:20,fontSize:11,fontWeight:600,background:color+"18",color,border:`1px solid ${color}30`,marginRight:4,marginBottom:2}}>
+    {children}
+  </span>
+);
+
+const Kpi = ({emoji, v, l, sub, color=C.gold}) => (
+  <div style={{background:C.surface,borderRadius:12,padding:"20px 18px",border:`1px solid ${C.border}`,boxShadow:shadow}}>
+    <div style={{fontSize:11,color:C.muted,marginBottom:8,letterSpacing:.3}}>{emoji} {l}</div>
+    <div style={{fontSize:30,fontWeight:800,color,lineHeight:1}}>{v}</div>
+    {sub && <div style={{fontSize:11,color:C.muted,marginTop:6}}>{sub}</div>}
+  </div>
+);
+
+const SectionTitle = ({children}) => (
+  <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.5,marginBottom:14,textTransform:"uppercase"}}>
+    {children}
+  </div>
+);
+
+const Card = ({children, pad=20, style={}}) => (
+  <div style={{background:C.surface,borderRadius:12,padding:pad,border:`1px solid ${C.border}`,boxShadow:shadow,...style}}>
+    {children}
+  </div>
+);
+
+const Btn = ({children, primary, onClick, style={}}) => (
+  <button onClick={onClick} style={{
+    padding: primary ? "9px 18px" : "8px 14px",
+    background: primary ? C.text : C.surface,
+    color: primary ? "#FFFFFF" : C.text,
+    border: `1px solid ${primary ? C.text : C.border}`,
+    borderRadius: 8, cursor:"pointer", fontSize:13, fontWeight:600,
+    boxShadow: shadow, ...style
+  }}>
+    {children}
+  </button>
+);
+
+const inp = {width:"100%",background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box"};
+
+// ── DATE RANGE PICKER ─────────────────────────────────────────────────────────
+function DateRangePicker({value, onChange}) {
   return (
-    <div style={{background:dark2,borderRadius:12,padding:"18px 16px",border:"1px solid "+dark3}}>
-      <div style={{fontSize:28,fontWeight:800,color:gold,lineHeight:1}}>{v}</div>
-      <div style={{fontSize:11,color:muted,marginTop:5}}>{l}</div>
-    </div>
+    <select value={value} onChange={e=>onChange(e.target.value)}
+      style={{padding:"8px 12px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:13,color:C.text,cursor:"pointer",boxShadow:shadow,outline:"none"}}>
+      {DATE_RANGES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+    </select>
   );
 }
 
 // ── LOGIN ──────────────────────────────────────────────────────────────────────
-function Login({ onLogin }) {
+function Login({onLogin}) {
   const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const [err, setErr] = useState("");
+  const [pass,  setPass]  = useState("");
+  const [err,   setErr]   = useState("");
 
   const go = () => {
-    if (email === CREDS.email && pass === CREDS.password) onLogin();
-    else setErr("Credenciales incorrectas");
+    const user = Object.values(USERS).find(u => u.email === email && u.password === pass);
+    if (user) onLogin(user.role);
+    else setErr("Credenciales incorrectas ❌");
   };
 
   return (
-    <div style={{minHeight:"100vh",background:dark0,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif"}}>
-      <div style={{width:340,padding:40,background:dark1,borderRadius:20,border:"1px solid "+dark3}}>
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif"}}>
+      <div style={{width:360,padding:40,background:C.surface,borderRadius:20,border:`1px solid ${C.border}`,boxShadow:shadowMd}}>
         <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{fontSize:26,fontWeight:900,color:gold,letterSpacing:-1}}>TheContentHub</div>
-          <div style={{fontSize:10,color:muted,letterSpacing:3,marginTop:4}}>REVO LABS</div>
+          <div style={{fontSize:28,fontWeight:900,color:C.text,letterSpacing:-1}}>TheContentHub</div>
+          <div style={{fontSize:11,color:C.muted,letterSpacing:2,marginTop:4}}>🚀 REVO LABS</div>
         </div>
-        {[["Email","email",email,setEmail],["Contraseña","password",pass,setPass]].map(([l,t,v,sv]) => (
+        {[["📧 Email","email",email,setEmail],["🔒 Contraseña","password",pass,setPass]].map(([l,t,v,sv]) => (
           <div key={l} style={{marginBottom:16}}>
-            <div style={{fontSize:11,color:muted,marginBottom:6}}>{l}</div>
+            <div style={{fontSize:12,color:C.muted,marginBottom:6,fontWeight:500}}>{l}</div>
             <input type={t} value={v} onChange={x=>sv(x.target.value)} onKeyDown={x=>x.key==="Enter"&&go()}
-              placeholder={l==="Email"?"humberto@revolabsmedia.com":""}
-              style={{width:"100%",background:dark0,border:"1px solid "+dark3,borderRadius:8,padding:"10px 12px",color:text,fontSize:13,outline:"none",boxSizing:"border-box"}} />
+              placeholder={t==="email"?"humberto@revolabsmedia.com":""} style={inp}/>
           </div>
         ))}
-        {err && <div style={{color:"#EF4444",fontSize:12,marginBottom:12}}>{err}</div>}
-        <button onClick={go} style={{width:"100%",padding:13,background:gold,color:dark0,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
-          Entrar
+        {err && <div style={{color:C.red,fontSize:12,marginBottom:12}}>{err}</div>}
+        <button onClick={go} style={{width:"100%",padding:13,background:C.text,color:"#FFF",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",marginTop:4}}>
+          Entrar →
         </button>
+        <div style={{marginTop:20,padding:12,background:C.light,borderRadius:8,fontSize:11,color:C.muted}}>
+          <div>👑 Admin: humberto@revolabsmedia.com</div>
+          <div style={{marginTop:4}}>👥 Community: community@revolabsmedia.com</div>
+          <div style={{marginTop:4,color:"#94A3B8"}}>Password: Revo2026! / Community2026!</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── COMMUNITY VIEW ─────────────────────────────────────────────────────────────
+function CommunityView({clients, onSubmit, onLogout}) {
+  const [clientId, setClientId] = useState("");
+  const [sent, setSent] = useState(false);
+  const blank = { clientId:"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:"" };
+  const [f, sf] = useState(blank);
+  const set = (k,v) => sf(p=>({...p,[k]:v}));
+
+  const submit = () => {
+    if (!f.clientId || !f.title) return;
+    const nums = ["pauta","views","likes","comments","shares","saves","duration","watchTimeAvg","followers","paraTi","siguiendo","busqueda"];
+    onSubmit({...f, id:"v"+Date.now(), ...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})});
+    setSent(true);
+    setTimeout(()=>{setSent(false); sf(blank);}, 3000);
+  };
+
+  const g2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
+  const fld = (l,k,t="text",opts) => (
+    <div style={{marginBottom:12}}>
+      <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
+      {opts
+        ? <select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}>
+            <option value="">Seleccionar...</option>
+            {opts.map(o=><option key={o}>{o}</option>)}
+          </select>
+        : <input type={t} value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}/>
+      }
+    </div>
+  );
+  const sec = (emoji, l) => <div style={{fontSize:11,fontWeight:700,color:C.accent,letterSpacing:1,margin:"18px 0 10px"}}>{emoji} {l}</div>;
+
+  return (
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"system-ui,sans-serif"}}>
+      <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 24px",height:54,display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:shadow}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18,fontWeight:900,color:C.text}}>TheContentHub</span>
+          <span style={{background:C.accent+"18",color:C.accent,fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20}}>Community</span>
+        </div>
+        <button onClick={onLogout} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12}}>Cerrar sesión</button>
+      </div>
+      <div style={{maxWidth:600,margin:"0 auto",padding:"32px 16px"}}>
+        {sent
+          ? <Card style={{textAlign:"center",padding:40}}>
+              <div style={{fontSize:48,marginBottom:16}}>✅</div>
+              <div style={{fontSize:20,fontWeight:800,color:C.green}}>¡Video registrado!</div>
+              <div style={{fontSize:13,color:C.muted,marginTop:8}}>Los datos ya están en el sistema. Gracias.</div>
+            </Card>
+          : <Card>
+              <div style={{marginBottom:20}}>
+                <div style={{fontSize:18,fontWeight:800,color:C.text}}>📹 Registrar video</div>
+                <div style={{fontSize:13,color:C.muted,marginTop:4}}>Llena los datos del video publicado</div>
+              </div>
+              {sec("📌","INFO GENERAL")}
+              <div style={g2}>
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Cliente</div>
+                  <select value={f.clientId} onChange={x=>set("clientId",x.target.value)} style={inp}>
+                    <option value="">Seleccionar cliente...</option>
+                    {clients.filter(c=>c.status==="active").map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                {fld("Plataforma","platform","text",PLATFORMS)}
+              </div>
+              {fld("Título del video","title")}
+              {fld("URL del video","url")}
+              <div style={g2}>{fld("Fecha de publicación","publishDate","date")}{fld("Duración (seg)","duration","number")}</div>
+              <div style={g2}>{fld("Creador / Talent","creator")}{fld("Editor","editor")}</div>
+              <div style={g2}>{fld("Community Manager","cm")}{fld("Pauta invertida ($)","pauta","number")}</div>
+              {sec("🎨","ATRIBUTOS CREATIVOS")}
+              <div style={g2}>{fld("🪝 Hook","hook","text",HOOKS)}{fld("🎬 Formato","format","text",FORMATS)}</div>
+              <div style={g2}>{fld("CTA","cta","text",CTAS)}{fld("Disparador emocional","trigger","text",TRIGGERS)}</div>
+              {fld("Pilar de contenido","pillar","text",PILLARS)}
+              {sec("📊","MÉTRICAS")}
+              <div style={g2}>{fld("👁 Vistas","views","number")}{fld("❤️ Me gusta","likes","number")}</div>
+              <div style={g2}>{fld("💬 Comentarios","comments","number")}{fld("🔁 Compartidos","shares","number")}</div>
+              <div style={g2}>{fld("🔖 Guardados","saves","number")}{fld("👥 Seguidores ganados","followers","number")}</div>
+              {fld("⏱ Tiempo de visualización promedio (seg)","watchTimeAvg","number")}
+              {sec("📡","FUENTES DE TRÁFICO (opcional)")}
+              <div style={{padding:10,background:C.light,borderRadius:8,marginBottom:12,fontSize:12,color:C.muted}}>
+                Estos tres números deben sumar aproximadamente 100%. Los encuentras en TikTok Analytics → Fuentes de tráfico del video.
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+                {fld("📱 % Para Ti","paraTi","number")}
+                {fld("👥 % Siguiendo","siguiendo","number")}
+                {fld("🔍 % Búsqueda","busqueda","number")}
+              </div>
+              <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:20}}>
+                <Btn onClick={submit} primary>Registrar video ✓</Btn>
+              </div>
+            </Card>
+        }
       </div>
     </div>
   );
 }
 
 // ── ADD VIDEO MODAL ────────────────────────────────────────────────────────────
-function AddModal({ clients, defaultClientId, onSave, onClose }) {
-  const blank = { clientId:defaultClientId||"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0" };
+function AddModal({clients, defaultClientId, onSave, onClose}) {
+  const blank = {clientId:defaultClientId||"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:""};
   const [f, sf] = useState(blank);
-  const set = (k,v) => sf(p => ({...p,[k]:v}));
-
+  const set = (k,v) => sf(p=>({...p,[k]:v}));
   const save = () => {
     if (!f.clientId || !f.title) return;
-    const nums = ["pauta","views","likes","comments","shares","saves","duration","watchTimeAvg","followers"];
-    onSave({...f, id:"v"+Date.now(), ...nums.reduce((o,k)=>({...o,[k]:+(f[k]||0)}),{})});
+    const nums = ["pauta","views","likes","comments","shares","saves","duration","watchTimeAvg","followers","paraTi","siguiendo","busqueda"];
+    onSave({...f, id:"v"+Date.now(), ...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})});
     onClose();
   };
 
-  const inp = (l,k,t="text",opts) => (
+  const g2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
+  const fld = (l,k,t="text",opts) => (
     <div style={{marginBottom:12}}>
-      <div style={{fontSize:10,color:muted,marginBottom:4,letterSpacing:.5}}>{l}</div>
+      <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
       {opts
-        ? <select value={f[k]} onChange={x=>set(k,x.target.value)} style={{width:"100%",background:dark0,border:"1px solid "+dark3,borderRadius:7,padding:"9px 10px",color:text,fontSize:12,outline:"none",boxSizing:"border-box"}}>
+        ? <select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}>
             <option value="">Seleccionar...</option>
-            {opts.map(o => <option key={o}>{o}</option>)}
+            {opts.map(o=><option key={o}>{o}</option>)}
           </select>
-        : <input type={t} value={f[k]} onChange={x=>set(k,x.target.value)} style={{width:"100%",background:dark0,border:"1px solid "+dark3,borderRadius:7,padding:"9px 10px",color:text,fontSize:12,outline:"none",boxSizing:"border-box"}} />
+        : <input type={t} value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}/>
       }
     </div>
   );
-
-  const sec = l => <div style={{fontSize:10,color:gold,letterSpacing:2,fontWeight:700,margin:"14px 0 8px"}}>{l}</div>;
-  const g2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
+  const sec = (e,l) => <div style={{fontSize:11,fontWeight:700,color:C.accent,letterSpacing:1,margin:"14px 0 10px"}}>{e} {l}</div>;
 
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:999,paddingTop:24,paddingBottom:24,overflowY:"auto"}}>
-      <div style={{background:dark2,borderRadius:16,border:"1px solid "+dark3,width:"min(680px,95vw)",fontFamily:"system-ui,sans-serif"}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:999,paddingTop:24,paddingBottom:24,overflowY:"auto"}}>
+      <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:shadowMd,width:"min(680px,95vw)",fontFamily:"system-ui,sans-serif"}}>
         <div style={{padding:"22px 26px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:17,fontWeight:700,color:text}}>Agregar video</div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:muted,fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
+          <div style={{fontSize:17,fontWeight:800,color:C.text}}>📹 Agregar video</div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer"}}>×</button>
         </div>
-        <div style={{padding:"16px 26px 26px"}}>
-          {sec("INFO GENERAL")}
+        <div style={{padding:"14px 26px 26px"}}>
+          {sec("📌","INFO GENERAL")}
           <div style={g2}>
             <div style={{marginBottom:12}}>
-              <div style={{fontSize:10,color:muted,marginBottom:4}}>Cliente</div>
-              <select value={f.clientId} onChange={x=>set("clientId",x.target.value)} style={{width:"100%",background:dark0,border:"1px solid "+dark3,borderRadius:7,padding:"9px 10px",color:text,fontSize:12,outline:"none",boxSizing:"border-box"}}>
+              <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Cliente</div>
+              <select value={f.clientId} onChange={x=>set("clientId",x.target.value)} style={inp}>
                 <option value="">Seleccionar...</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            {inp("Plataforma","platform","text",PLATFORMS)}
+            {fld("Plataforma","platform","text",PLATFORMS)}
           </div>
-          {inp("Título del video","title")}
-          <div style={g2}>{inp("Fecha de publicación","publishDate","date")}{inp("Duración (seg)","duration","number")}</div>
-          <div style={g2}>{inp("Creador / Talent","creator")}{inp("Editor","editor")}</div>
-          <div style={g2}>{inp("Community Manager","cm")}{inp("Pauta ($)","pauta","number")}</div>
-          {sec("ATRIBUTOS CREATIVOS")}
-          <div style={g2}>{inp("Hook","hook","text",HOOKS)}{inp("Formato","format","text",FORMATS)}</div>
-          <div style={g2}>{inp("CTA","cta","text",CTAS)}{inp("Disparador emocional","trigger","text",TRIGGERS)}</div>
-          {inp("Pilar de contenido","pillar","text",PILLARS)}
-          {sec("MÉTRICAS")}
-          <div style={g2}>{inp("Vistas","views","number")}{inp("Me gusta","likes","number")}</div>
-          <div style={g2}>{inp("Comentarios","comments","number")}{inp("Compartidos","shares","number")}</div>
-          <div style={g2}>{inp("Guardados","saves","number")}{inp("Seguidores ganados","followers","number")}</div>
-          <div style={g2}>{inp("Tiempo viz. promedio (seg)","watchTimeAvg","number")}</div>
+          {fld("Título del video","title")}
+          <div style={g2}>{fld("Fecha","publishDate","date")}{fld("Duración (seg)","duration","number")}</div>
+          <div style={g2}>{fld("Creador / Talent","creator")}{fld("Editor","editor")}</div>
+          <div style={g2}>{fld("Community Manager","cm")}{fld("Pauta ($)","pauta","number")}</div>
+          {sec("🎨","ATRIBUTOS CREATIVOS")}
+          <div style={g2}>{fld("🪝 Hook","hook","text",HOOKS)}{fld("🎬 Formato","format","text",FORMATS)}</div>
+          <div style={g2}>{fld("CTA","cta","text",CTAS)}{fld("Disparador emocional","trigger","text",TRIGGERS)}</div>
+          {fld("Pilar de contenido","pillar","text",PILLARS)}
+          {sec("📊","MÉTRICAS")}
+          <div style={g2}>{fld("Vistas","views","number")}{fld("Me gusta","likes","number")}</div>
+          <div style={g2}>{fld("Comentarios","comments","number")}{fld("Compartidos","shares","number")}</div>
+          <div style={g2}>{fld("Guardados","saves","number")}{fld("Seguidores ganados","followers","number")}</div>
+          {fld("Tiempo viz. promedio (seg)","watchTimeAvg","number")}
+          {sec("📡","FUENTES DE TRÁFICO")}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            {fld("📱 % Para Ti","paraTi","number")}
+            {fld("👥 % Siguiendo","siguiendo","number")}
+            {fld("🔍 % Búsqueda","busqueda","number")}
+          </div>
           <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
-            <button onClick={onClose} style={{padding:"9px 18px",background:dark3,color:muted2,border:"none",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600}}>Cancelar</button>
-            <button onClick={save} style={{padding:"9px 18px",background:gold,color:dark0,border:"none",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:700}}>Guardar video</button>
+            <Btn onClick={onClose}>Cancelar</Btn>
+            <Btn onClick={save} primary>Guardar video ✓</Btn>
           </div>
         </div>
       </div>
@@ -187,275 +393,510 @@ function AddModal({ clients, defaultClientId, onSave, onClose }) {
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-function Dashboard({ clients, videos, onClient }) {
-  const top = [...videos].sort((a,b) => b.views-a.views)[0];
-  const clName = id => clients.find(c => c.id===id)?.name||"";
-  const hd = hookChart(videos);
+function Dashboard({clients, videos, onClient}) {
+  const top = [...videos].sort((a,b)=>b.views-a.views)[0];
+  const hd  = groupBy(videos,"hook");
+  const clName = id => clients.find(c=>c.id===id)?.name||"";
 
   return (
     <div>
-      <div style={{marginBottom:22}}>
-        <div style={{fontSize:20,fontWeight:800,color:text}}>Agency Dashboard</div>
-        <div style={{fontSize:12,color:muted,marginTop:3}}>Junio 2026 · {videos.length} videos · {clients.length} clientes</div>
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>📊 Agency Dashboard</div>
+        <div style={{fontSize:13,color:C.muted,marginTop:4}}>{videos.length} videos en el período seleccionado</div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:22}}>
-        <Kpi v={fmt(totViews(videos))} l="Vistas totales"/>
-        <Kpi v={videos.length} l="Videos publicados"/>
-        <Kpi v={clients.filter(c=>cVids(videos,c.id).length>0).length+"/"+clients.length} l="Clientes activos"/>
-        <Kpi v={"$"+fmt(totPauta(videos))} l="Pauta invertida"/>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:24}}>
+        <Kpi emoji="👁" v={fmt(totV(videos))}                                         l="Vistas totales"/>
+        <Kpi emoji="🎬" v={videos.length}                                              l="Videos publicados"/>
+        <Kpi emoji="💹" v={avgE(videos)}                                               l="Engagement promedio" color={C.accent}/>
+        <Kpi emoji="📡" v={avgParaTi(videos)}                                          l="% Para Ti promedio"  color={C.green}/>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr",gap:16}}>
-        <div style={{background:dark2,borderRadius:12,padding:20,border:"1px solid "+dark3}}>
-          <div style={{fontSize:11,color:muted,letterSpacing:1,fontWeight:600,marginBottom:14}}>CLIENTES</div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1.3fr 1fr",gap:16,marginBottom:16}}>
+        <Card>
+          <SectionTitle>🏢 Clientes</SectionTitle>
           {clients.map(c => {
             const vs = cVids(videos, c.id);
             const has = vs.length > 0;
             return (
               <div key={c.id} onClick={()=>onClient(c.id)}
-                style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid "+dark1,cursor:"pointer"}}>
+                style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <span style={{width:7,height:7,borderRadius:"50%",background:has?green:dark3,display:"inline-block",flexShrink:0}}/>
+                  <span style={{fontSize:16}}>{has?"🟢":"⚪"}</span>
                   <div>
-                    <div style={{fontSize:13,fontWeight:600,color:text}}>{c.name}</div>
-                    <div style={{fontSize:10,color:muted}}>{c.retainer?"$"+c.retainer.toLocaleString():"Sin retainer"}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:C.text}}>{c.name}</div>
+                    <div style={{fontSize:11,color:C.muted}}>{c.industry}</div>
                   </div>
                 </div>
                 <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:14,fontWeight:700,color:has?gold:dark3}}>{has?fmt(totViews(vs)):"—"}</div>
-                  <div style={{fontSize:10,color:muted}}>{vs.length} videos</div>
+                  <div style={{fontSize:15,fontWeight:800,color:has?C.gold:C.muted}}>{has?fmt(totV(vs)):"Sin datos"}</div>
+                  <div style={{fontSize:11,color:C.muted}}>{vs.length} videos</div>
                 </div>
               </div>
             );
           })}
-        </div>
+        </Card>
+
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           {top && (
-            <div style={{background:dark2,borderRadius:12,padding:20,border:"1px solid "+dark3}}>
-              <div style={{fontSize:11,color:muted,letterSpacing:1,fontWeight:600,marginBottom:10}}>VIDEO DEL MES</div>
-              <div style={{fontSize:16,fontWeight:800,color:gold,marginBottom:4,lineHeight:1.2}}>{top.title}</div>
-              <div style={{fontSize:11,color:muted,marginBottom:12}}>{clName(top.clientId)} · {top.publishDate}</div>
+            <Card>
+              <SectionTitle>🏆 Video del período</SectionTitle>
+              <div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:4,lineHeight:1.3}}>{top.title}</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{clName(top.clientId)} · {top.publishDate}</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-                {[[fmt(top.views),"Vistas"],[engRate(top),"Eng."],["$"+top.pauta,"Pauta"]].map(([v,l]) => (
-                  <div key={l} style={{background:dark1,borderRadius:8,padding:10}}>
-                    <div style={{fontSize:18,fontWeight:800,color:text}}>{v}</div>
-                    <div style={{fontSize:9,color:muted}}>{l}</div>
+                {[[fmt(top.views),"👁 Vistas"],[eng(top),"💹 Eng."],[`${top.paraTi??'—'}%`,"📡 Para Ti"]].map(([v,l]) => (
+                  <div key={l} style={{background:C.light,borderRadius:8,padding:10,textAlign:"center"}}>
+                    <div style={{fontSize:16,fontWeight:800,color:C.text}}>{v}</div>
+                    <div style={{fontSize:9,color:C.muted,marginTop:2}}>{l}</div>
                   </div>
                 ))}
               </div>
-              <Tag>{top.hook}</Tag><Tag color="#3B82F6">{top.format}</Tag>
-            </div>
+              <Tag>{top.hook}</Tag><Tag color={C.accent}>{top.format}</Tag>
+            </Card>
           )}
-          <div style={{background:dark2,borderRadius:12,padding:20,border:"1px solid "+dark3,flex:1}}>
-            <div style={{fontSize:11,color:muted,letterSpacing:1,fontWeight:600,marginBottom:12}}>TOP HOOKS</div>
-            <ResponsiveContainer width="100%" height={150}>
-              <BarChart data={hd.slice(0,5)} layout="vertical" margin={{left:0,right:16,top:0,bottom:0}}>
+          <Card style={{flex:1}}>
+            <SectionTitle>🪝 Top Hooks</SectionTitle>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={hd.slice(0,5)} layout="vertical" margin={{left:0,right:20,top:0,bottom:0}}>
                 <XAxis type="number" hide/>
-                <YAxis type="category" dataKey="name" width={85} tick={{fill:muted2,fontSize:10}} axisLine={false} tickLine={false}/>
-                <Tooltip contentStyle={{background:dark2,border:"1px solid "+dark3,borderRadius:8,fontSize:11}} formatter={v=>[fmt(v),"Avg vistas"]}/>
-                <Bar dataKey="avg" radius={3}>
-                  {hd.slice(0,5).map((_,i) => <Cell key={i} fill={i===0?gold:i===1?"#C49516":"#334155"}/>)}
+                <YAxis type="category" dataKey="name" width={88} tick={{fill:C.muted,fontSize:10}} axisLine={false} tickLine={false}/>
+                <Tooltip contentStyle={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}} formatter={v=>[fmt(v),"Avg vistas"]}/>
+                <Bar dataKey="avg" radius={4}>
+                  {hd.slice(0,5).map((_,i) => <Cell key={i} fill={i===0?C.gold:i===1?C.amber:"#CBD5E1"}/>)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </Card>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── INTELIGENCIA CREATIVA ─────────────────────────────────────────────────────
+function CreativePage({videos}) {
+  const hd  = groupBy(videos, "hook");
+  const fd  = groupBy(videos, "format");
+  const cd  = groupBy(videos, "cta");
+  const pd  = groupBy(videos, "pillar");
+
+  const withPara = videos.filter(v=>v.paraTi!=null);
+  const avgPara  = withPara.length ? Math.round(withPara.reduce((s,v)=>s+v.paraTi,0)/withPara.length) : 0;
+  const avgSig   = withPara.length ? Math.round(withPara.reduce((s,v)=>s+(v.siguiendo||0),0)/withPara.length) : 0;
+  const avgBus   = withPara.length ? Math.round(withPara.reduce((s,v)=>s+(v.busqueda||0),0)/withPara.length) : 0;
+
+  const organic  = videos.filter(v=>v.pauta===0);
+  const pautado  = videos.filter(v=>v.pauta>0);
+  const avgOrganic = organic.length ? Math.round(totV(organic)/organic.length) : 0;
+  const avgPautado = pautado.length  ? Math.round(totV(pautado)/pautado.length) : 0;
+
+  const topAlgo = [...withPara].sort((a,b)=>b.paraTi-a.paraTi).slice(0,5);
+
+  const chart = (data, title, colorMain, colorOther="#CBD5E1") => (
+    <Card>
+      <SectionTitle>{title}</SectionTitle>
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart data={data.slice(0,7)} layout="vertical" margin={{left:0,right:20,top:0,bottom:0}}>
+          <XAxis type="number" hide/>
+          <YAxis type="category" dataKey="name" width={100} tick={{fill:C.muted,fontSize:10}} axisLine={false} tickLine={false}/>
+          <Tooltip contentStyle={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}} formatter={v=>[fmt(v),"Avg vistas"]}/>
+          <Bar dataKey="avg" radius={4}>
+            {data.slice(0,7).map((_,i) => <Cell key={i} fill={i===0?colorMain:i===1?colorMain+"BB":colorOther}/>)}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </Card>
+  );
+
+  return (
+    <div>
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>🧠 Inteligencia Creativa</div>
+        <div style={{fontSize:13,color:C.muted,marginTop:4}}>Lo que los datos dicen que funciona — {videos.length} videos analizados</div>
+      </div>
+
+      {/* Insight cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:24}}>
+        <Card style={{borderLeft:`4px solid ${C.gold}`}}>
+          <div style={{fontSize:10,color:C.muted,letterSpacing:1,marginBottom:8}}>🪝 MEJOR HOOK</div>
+          <div style={{fontSize:20,fontWeight:800,color:C.text}}>{hd[0]?.name||"—"}</div>
+          <div style={{fontSize:12,color:C.muted,marginTop:4}}>{hd[0]?.n} videos · avg {fmt(hd[0]?.avg||0)} vistas</div>
+        </Card>
+        <Card style={{borderLeft:`4px solid ${C.accent}`}}>
+          <div style={{fontSize:10,color:C.muted,letterSpacing:1,marginBottom:8}}>🎬 MEJOR FORMATO</div>
+          <div style={{fontSize:20,fontWeight:800,color:C.text}}>{fd[0]?.name||"—"}</div>
+          <div style={{fontSize:12,color:C.muted,marginTop:4}}>{fd[0]?.n} videos · avg {fmt(fd[0]?.avg||0)} vistas</div>
+        </Card>
+        <Card style={{borderLeft:`4px solid ${C.green}`}}>
+          <div style={{fontSize:10,color:C.muted,letterSpacing:1,marginBottom:8}}>📡 PARA TI PROMEDIO</div>
+          <div style={{fontSize:20,fontWeight:800,color:C.green}}>{avgPara}%</div>
+          <div style={{fontSize:12,color:C.muted,marginTop:4}}>{avgPara>=70?"🔥 Algoritmo te impulsa":"Mejorable — fortalecer el hook"}</div>
+        </Card>
+      </div>
+
+      {/* Charts row */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        {chart(hd,  "🪝 Vistas promedio por Hook",   C.gold)}
+        {chart(fd,  "🎬 Vistas promedio por Formato", C.accent)}
+      </div>
+
+      {/* Traffic sources + pauta analysis */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        <Card>
+          <SectionTitle>📡 Fuentes de tráfico (promedio)</SectionTitle>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+            {[["📱 Para Ti",avgPara,C.green],["👥 Siguiendo",avgSig,C.accent],["🔍 Búsqueda",avgBus,C.gold]].map(([l,v,color])=>(
+              <div key={l} style={{textAlign:"center",background:C.light,borderRadius:10,padding:14}}>
+                <div style={{fontSize:26,fontWeight:800,color}}>{v}%</div>
+                <div style={{fontSize:10,color:C.muted,marginTop:4}}>{l}</div>
+              </div>
+            ))}
+          </div>
+          <SectionTitle>🔥 Videos más algorítmicos (% Para Ti)</SectionTitle>
+          {topAlgo.map((v,i) => (
+            <div key={v.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
+              <div style={{fontSize:12,color:C.text,maxWidth:200}}>{v.title}</div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <span style={{fontSize:11,color:C.muted}}>{fmt(v.views)} vistas</span>
+                <span style={{background:C.green+"18",color:C.green,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20}}>{v.paraTi}%</span>
+              </div>
+            </div>
+          ))}
+        </Card>
+
+        <Card>
+          <SectionTitle>💰 ¿La pauta decide el éxito?</SectionTitle>
+          <div style={{padding:14,background:C.light,borderRadius:10,marginBottom:16}}>
+            <div style={{fontSize:12,color:C.muted,marginBottom:8}}>Vistas promedio: orgánico vs pautado</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {[["🌱 Sin pauta",avgOrganic,organic.length],[`💸 Con pauta`,avgPautado,pautado.length]].map(([l,v,n])=>(
+                <div key={l} style={{textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:800,color:C.text}}>{fmt(v)}</div>
+                  <div style={{fontSize:10,color:C.muted}}>{l}</div>
+                  <div style={{fontSize:10,color:C.muted}}>({n} videos)</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{padding:12,background:"#FFF7ED",borderRadius:8,border:"1px solid #FED7AA"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#9A3412",marginBottom:4}}>💡 El hallazgo clave</div>
+            <div style={{fontSize:12,color:"#7C2D12",lineHeight:1.5}}>
+              La pauta amplifica, no crea. El hook decide el techo del video. Optimiza el contenido primero, amplifica después.
+            </div>
+          </div>
+          <div style={{marginTop:16}}>
+            <SectionTitle>🎯 Mejor CTA por guardados</SectionTitle>
+            {cd.slice(0,4).map((c,i) => (
+              <div key={c.name} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}`}}>
+                <span style={{fontSize:12,color:C.text}}>{c.name}</span>
+                <span style={{fontSize:12,fontWeight:700,color:C.gold}}>{fmt(c.avg)} avg</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ── EQUIPO ─────────────────────────────────────────────────────────────────────
+function TeamPage({videos}) {
+  const { creators, editors, cms } = useMemo(() => teamStats(videos), [videos]);
+
+  const HeroCard = ({emoji, role, person}) => person ? (
+    <Card style={{borderTop:`4px solid ${C.gold}`}}>
+      <div style={{fontSize:10,color:C.muted,letterSpacing:1,marginBottom:8}}>{emoji} MEJOR {role.toUpperCase()}</div>
+      <div style={{fontSize:24,fontWeight:800,color:C.text,marginBottom:4}}>{person.name}</div>
+      <div style={{fontSize:13,color:C.gold,fontWeight:600,marginBottom:8}}>🏆 {person.topVideo.title}</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {[[fmt(person.topVideo.views),"Vistas top video"],[person.count+" videos","Participaciones"],[fmt(person.avgViews),"Avg vistas"],[eng(person.topVideo),"Eng. top video"]].map(([v,l])=>(
+          <div key={l} style={{background:C.light,borderRadius:8,padding:10}}>
+            <div style={{fontSize:16,fontWeight:800,color:C.text}}>{v}</div>
+            <div style={{fontSize:9,color:C.muted}}>{l}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  ) : (
+    <Card><div style={{textAlign:"center",padding:20,color:C.muted}}>Sin datos</div></Card>
+  );
+
+  const RankTable = ({title, emoji, people}) => (
+    <Card>
+      <SectionTitle>{emoji} {title}</SectionTitle>
+      {people.length === 0
+        ? <div style={{color:C.muted,fontSize:12,textAlign:"center",padding:20}}>Sin datos en este período</div>
+        : <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead>
+              <tr>{["#","Nombre","Videos","Avg Vistas","Mejor Video","Vistas Top"].map(h=>(
+                <th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {people.map((p,i)=>(
+                <tr key={p.name}>
+                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.muted}}>
+                    {i===0?"🥇":i===1?"🥈":i===2?"🥉":`#${i+1}`}
+                  </td>
+                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:600,color:C.text}}>{p.name}</td>
+                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.muted}}>{p.count}</td>
+                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:700,color:C.gold}}>{fmt(p.avgViews)}</td>
+                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:12,color:C.muted,maxWidth:180}}>{p.topVideo.title}</td>
+                  <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:700,color:C.accent}}>{fmt(p.topVideo.views)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+      }
+    </Card>
+  );
+
+  return (
+    <div>
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>👥 Equipo</div>
+        <div style={{fontSize:13,color:C.muted,marginTop:4}}>Rendimiento basado en el mejor video del período · El criterio es calidad, no cantidad</div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:24}}>
+        <HeroCard emoji="🎭" role="Creador"          person={creators[0]}/>
+        <HeroCard emoji="✂️" role="Editor"           person={editors[0]}/>
+        <HeroCard emoji="📱" role="Community Manager" person={cms[0]}/>
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:16}}>
+        <RankTable title="Creadores / Talent"   emoji="🎭" people={creators}/>
+        <RankTable title="Editores"             emoji="✂️" people={editors}/>
+        <RankTable title="Community Managers"   emoji="📱" people={cms}/>
       </div>
     </div>
   );
 }
 
 // ── CLIENT PAGE ───────────────────────────────────────────────────────────────
-function ClientPage({ client, videos, onAdd }) {
-  const vs = cVids(videos, client.id);
-  const top = [...vs].sort((a,b) => b.views-a.views)[0];
+function ClientPage({client, videos, onAdd}) {
+  const vs  = cVids(videos, client.id);
+  const top = [...vs].sort((a,b)=>b.views-a.views)[0];
+  const bot = [...vs].sort((a,b)=>a.views-b.views)[0];
   const [q, sq] = useState("");
-  const filtered = vs.filter(v => [v.title,v.creator,v.hook,v.format].some(x => x?.toLowerCase().includes(q.toLowerCase())));
-  const hd = hookChart(vs);
+  const filtered = vs.filter(v=>[v.title,v.creator,v.hook,v.format].some(x=>x?.toLowerCase().includes(q.toLowerCase())));
+  const hd = groupBy(vs,"hook");
 
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
-          <div style={{fontSize:22,fontWeight:800,color:text}}>{client.name}</div>
-          <div style={{fontSize:12,color:muted,marginTop:3}}>
-            {client.retainer?"$"+client.retainer.toLocaleString()+" retainer · ":""}{client.industry} · {client.am}
-          </div>
+          <div style={{fontSize:22,fontWeight:800,color:C.text}}>{client.name}</div>
+          <div style={{fontSize:12,color:C.muted,marginTop:4}}>{client.industry} · AM: {client.am} · {client.goal}</div>
         </div>
-        <button onClick={onAdd} style={{padding:"9px 18px",background:gold,color:dark0,border:"none",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:700}}>
-          + Agregar video
-        </button>
+        <Btn onClick={onAdd} primary>+ Agregar video</Btn>
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-        <Kpi v={vs.length} l="Videos"/>
-        <Kpi v={fmt(totViews(vs))} l="Vistas"/>
-        <Kpi v={avgEngStr(vs)} l="Engagement prom."/>
-        <Kpi v={vs.length>0?roiStr({pauta:totPauta(vs),views:totViews(vs)}):"—"} l="Pauta ROI"/>
+        <Kpi emoji="🎬" v={vs.length}           l="Videos"/>
+        <Kpi emoji="👁" v={fmt(totV(vs))}        l="Vistas"/>
+        <Kpi emoji="💹" v={avgE(vs)}             l="Engagement" color={C.accent}/>
+        <Kpi emoji="📡" v={avgParaTi(vs)}        l="% Para Ti"  color={C.green}/>
       </div>
 
       {vs.length === 0 ? (
-        <div style={{background:dark2,borderRadius:12,padding:40,border:"1px solid "+dark3,textAlign:"center"}}>
-          <div style={{fontSize:32,marginBottom:8}}>📹</div>
-          <div style={{fontSize:14,color:text}}>Sin videos aún</div>
-          <div style={{fontSize:12,color:muted,marginTop:4}}>Agrega el primero con el botón de arriba</div>
-        </div>
+        <Card style={{textAlign:"center",padding:48}}>
+          <div style={{fontSize:40,marginBottom:12}}>📹</div>
+          <div style={{fontSize:15,fontWeight:700,color:C.text}}>Sin videos aún</div>
+          <div style={{fontSize:13,color:C.muted,marginTop:6}}>Agrega el primero con el botón de arriba</div>
+        </Card>
       ) : (
         <>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
             {hd.length > 0 && (
-              <div style={{background:dark2,borderRadius:12,padding:20,border:"1px solid "+dark3}}>
-                <div style={{fontSize:11,color:muted,letterSpacing:1,fontWeight:600,marginBottom:12}}>HOOK PERFORMANCE</div>
+              <Card>
+                <SectionTitle>🪝 Hook Performance</SectionTitle>
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={hd} layout="vertical" margin={{left:0,right:16,top:0,bottom:0}}>
+                  <BarChart data={hd} layout="vertical" margin={{left:0,right:20,top:0,bottom:0}}>
                     <XAxis type="number" hide/>
-                    <YAxis type="category" dataKey="name" width={90} tick={{fill:muted2,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <Tooltip contentStyle={{background:dark2,border:"1px solid "+dark3,borderRadius:8,fontSize:11}} formatter={v=>[fmt(v),"Avg vistas"]}/>
-                    <Bar dataKey="avg" radius={3}>
-                      {hd.map((_,i) => <Cell key={i} fill={i===0?gold:i===1?"#C49516":"#334155"}/>)}
+                    <YAxis type="category" dataKey="name" width={95} tick={{fill:C.muted,fontSize:10}} axisLine={false} tickLine={false}/>
+                    <Tooltip contentStyle={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}} formatter={v=>[fmt(v),"Avg vistas"]}/>
+                    <Bar dataKey="avg" radius={4}>
+                      {hd.map((_,i)=><Cell key={i} fill={i===0?C.gold:i===1?C.amber:"#CBD5E1"}/>)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </Card>
             )}
-            {top && (
-              <div style={{background:dark2,borderRadius:12,padding:20,border:"1px solid "+dark3}}>
-                <div style={{fontSize:11,color:muted,letterSpacing:1,fontWeight:600,marginBottom:10}}>MEJOR VIDEO</div>
-                <div style={{fontSize:15,fontWeight:800,color:gold,marginBottom:10,lineHeight:1.2}}>{top.title}</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-                  {[[fmt(top.views),"Vistas"],[engRate(top),"Engagement"],["$"+top.pauta,"Pauta"],[top.watchTimeAvg+"s","Tiempo viz"]].map(([v,l]) => (
-                    <div key={l} style={{background:dark1,borderRadius:8,padding:10}}>
-                      <div style={{fontSize:18,fontWeight:800,color:text}}>{v}</div>
-                      <div style={{fontSize:9,color:muted}}>{l}</div>
-                    </div>
-                  ))}
-                </div>
-                <Tag>{top.hook}</Tag><Tag color="#3B82F6">{top.format}</Tag>
-                <div style={{marginTop:8,fontSize:11,color:muted}}>Editor: {top.editor} · CM: {top.cm}</div>
-              </div>
-            )}
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              {top && (
+                <Card style={{borderLeft:`4px solid ${C.green}`}}>
+                  <SectionTitle>🏆 Mejor video</SectionTitle>
+                  <div style={{fontSize:14,fontWeight:800,color:C.text,marginBottom:8,lineHeight:1.3}}>{top.title}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                    {[[fmt(top.views),"Vistas"],[eng(top),"Engagement"],[`${top.paraTi??'—'}%`,"Para Ti"],[roiStr(top),"ROI"]].map(([v,l])=>(
+                      <div key={l} style={{background:C.light,borderRadius:8,padding:8,textAlign:"center"}}>
+                        <div style={{fontSize:14,fontWeight:800,color:C.text}}>{v}</div>
+                        <div style={{fontSize:9,color:C.muted}}>{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <Tag>{top.hook}</Tag><Tag color={C.accent}>{top.format}</Tag>
+                </Card>
+              )}
+              {bot && bot.id !== top?.id && (
+                <Card style={{borderLeft:`4px solid ${C.red}`}}>
+                  <SectionTitle>⚠️ Peor video</SectionTitle>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:6,lineHeight:1.3}}>{bot.title}</div>
+                  <div style={{fontSize:13,color:C.gold,fontWeight:700}}>{fmt(bot.views)} vistas</div>
+                  <div style={{marginTop:6}}><Tag color={C.red}>{bot.hook}</Tag><Tag color={C.muted}>{bot.format}</Tag></div>
+                </Card>
+              )}
+            </div>
           </div>
 
-          <div style={{background:dark2,borderRadius:12,padding:20,border:"1px solid "+dark3}}>
+          <Card>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-              <div style={{fontSize:11,color:muted,letterSpacing:1,fontWeight:600}}>VIDEOS ({vs.length})</div>
-              <input value={q} onChange={x=>sq(x.target.value)} placeholder="Buscar..."
-                style={{background:dark1,border:"1px solid "+dark3,borderRadius:7,padding:"7px 10px",color:text,fontSize:12,outline:"none",width:200}} />
+              <SectionTitle>🎬 Videos ({vs.length})</SectionTitle>
+              <input value={q} onChange={x=>sq(x.target.value)} placeholder="🔍 Buscar..."
+                style={{...inp,width:220,fontSize:12,padding:"7px 10px"}}/>
             </div>
             <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+              <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
                 <thead>
-                  <tr>{["Título","Fecha","Hook","Vistas","Eng.","Pauta"].map(h => (
-                    <th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:muted,letterSpacing:1,fontWeight:600,borderBottom:"1px solid "+dark3}}>{h}</th>
+                  <tr>{["Título","Fecha","Hook","Vistas","Eng.","Para Ti","Pauta","ROI"].map(h=>(
+                    <th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
                   ))}</tr>
                 </thead>
                 <tbody>
-                  {filtered.sort((a,b) => b.views-a.views).map(v => (
-                    <tr key={v.id}>
-                      <td style={{padding:"11px 10px",borderBottom:"1px solid "+dark1}}>
-                        <div style={{fontSize:13,fontWeight:600,color:text,maxWidth:220}}>{v.title}</div>
-                        <div style={{fontSize:10,color:muted}}>{v.creator}</div>
+                  {filtered.sort((a,b)=>b.views-a.views).map(v=>(
+                    <tr key={v.id} style={{transition:"background .1s"}} onMouseEnter={e=>e.currentTarget.style.background=C.light} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                      <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`}}>
+                        <div style={{fontSize:13,fontWeight:600,color:C.text,maxWidth:220}}>{v.title}</div>
+                        <div style={{fontSize:10,color:C.muted,marginTop:2}}>{v.creator} · {v.editor}</div>
                       </td>
-                      <td style={{padding:"11px 10px",fontSize:11,color:muted,borderBottom:"1px solid "+dark1}}>{v.publishDate}</td>
-                      <td style={{padding:"11px 10px",borderBottom:"1px solid "+dark1}}><Tag>{v.hook}</Tag></td>
-                      <td style={{padding:"11px 10px",fontSize:14,fontWeight:700,color:gold,borderBottom:"1px solid "+dark1}}>{fmt(v.views)}</td>
-                      <td style={{padding:"11px 10px",fontSize:12,color:text,borderBottom:"1px solid "+dark1}}>{engRate(v)}</td>
-                      <td style={{padding:"11px 10px",fontSize:12,color:muted,borderBottom:"1px solid "+dark1}}>${v.pauta}</td>
+                      <td style={{padding:"11px 10px",fontSize:11,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{v.publishDate}</td>
+                      <td style={{padding:"11px 10px",borderBottom:`1px solid ${C.border}`}}><Tag>{v.hook}</Tag></td>
+                      <td style={{padding:"11px 10px",fontSize:14,fontWeight:800,color:C.gold,borderBottom:`1px solid ${C.border}`}}>{fmt(v.views)}</td>
+                      <td style={{padding:"11px 10px",fontSize:12,borderBottom:`1px solid ${C.border}`}}>{eng(v)}</td>
+                      <td style={{padding:"11px 10px",fontSize:12,fontWeight:700,color:v.paraTi>=70?C.green:C.muted,borderBottom:`1px solid ${C.border}`}}>{pct(v.paraTi)}</td>
+                      <td style={{padding:"11px 10px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`}}>${v.pauta}</td>
+                      <td style={{padding:"11px 10px",fontSize:11,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{roiStr(v)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
         </>
       )}
     </div>
   );
 }
 
-// ── MAIN ──────────────────────────────────────────────────────────────────────
+// ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [authed, setAuthed] = useState(() => store.get("tch_session") === true);
-  const [clients, setClients] = useState(() => store.get("tch_clients") || SEED_CLIENTS);
-  const [videos, setVideos] = useState(() => store.get("tch_videos") || SEED_VIDEOS);
-  const [page, setPage] = useState("dashboard");
-  const [modal, setModal] = useState(null);
+  const [role,    setRole]    = useState(() => store.get("tch_role") || null);
+  const [clients, setClients] = useState(() => store.get("tch_clients_v2") || SEED_CLIENTS);
+  const [videos,  setVideos]  = useState(() => store.get("tch_videos_v2")  || SEED_VIDEOS);
+  const [page,    setPage]    = useState("dashboard");
+  const [modal,   setModal]   = useState(null);
+  const [range,   setRange]   = useState("all");
 
-  useEffect(() => { store.set("tch_clients", clients); }, [clients]);
-  useEffect(() => { store.set("tch_videos", videos); }, [videos]);
-  useEffect(() => { store.set("tch_session", authed); }, [authed]);
+  useEffect(() => { store.set("tch_clients_v2", clients); }, [clients]);
+  useEffect(() => { store.set("tch_videos_v2",  videos);  }, [videos]);
+  useEffect(() => { store.set("tch_role",        role);    }, [role]);
 
-  const addVideo = useCallback(v => setVideos(p => [...p, v]), []);
-  const logout = () => { setAuthed(false); store.set("tch_session", false); };
+  const addVideo  = useCallback(v => setVideos(p => [...p,v]), []);
+  const logout    = () => { setRole(null); store.set("tch_role", null); };
+  const filtered  = useMemo(() => filterByDate(videos, range), [videos, range]);
 
-  if (!authed) return <Login onLogin={() => setAuthed(true)} />;
+  if (!role) return <Login onLogin={r => { setRole(r); }} />;
 
+  if (role === "community") return (
+    <CommunityView clients={clients} onSubmit={addVideo} onLogout={logout}/>
+  );
+
+  // ADMIN VIEW
   const activeClient = clients.find(c => c.id === page);
-  const withData = clients.filter(c => cVids(videos, c.id).length > 0);
-  const noData = clients.filter(c => cVids(videos, c.id).length === 0);
+  const withData     = clients.filter(c => cVids(filtered, c.id).length > 0);
+  const noData       = clients.filter(c => cVids(filtered, c.id).length === 0);
 
-  const navItem = (id, label, dotColor) => (
-    <div key={id} onClick={() => setPage(id)}
-      style={{display:"flex",alignItems:"center",gap:8,padding:"8px 14px",cursor:"pointer",fontSize:13,
-        fontWeight:page===id?600:400, color:page===id?gold:muted2,
-        borderLeft:page===id?"2px solid "+gold:"2px solid transparent",
-        background:page===id?"rgba(212,160,23,.07)":"transparent"}}>
-      <span style={{width:6,height:6,borderRadius:"50%",background:dotColor,flexShrink:0,display:"inline-block"}}/>
-      {label}
+  const navItem = (id, label, dot) => (
+    <div key={id} onClick={() => setPage(id)} style={{
+      display:"flex",alignItems:"center",gap:9,padding:"8px 16px",cursor:"pointer",
+      fontSize:13,fontWeight:page===id?600:400,
+      color:page===id?C.sideGold:C.sideText,
+      borderLeft:page===id?`2px solid ${C.sideGold}`:"2px solid transparent",
+      background:page===id?"rgba(245,158,11,.1)":"transparent",
+    }}>
+      <span style={{fontSize:7,color:dot,flexShrink:0}}>●</span> {label}
     </div>
   );
 
+  const mainPages = [
+    {id:"dashboard", label:"📊 Dashboard"},
+    {id:"creative",  label:"🧠 Inteligencia Creativa"},
+    {id:"team",      label:"👥 Equipo"},
+  ];
+
   return (
-    <div style={{display:"flex",height:"100vh",background:dark0,fontFamily:"system-ui,sans-serif",color:text,overflow:"hidden"}}>
+    <div style={{display:"flex",height:"100vh",background:C.bg,fontFamily:"system-ui,sans-serif",color:C.text,overflow:"hidden"}}>
       {/* Sidebar */}
-      <div style={{width:210,background:dark1,flexShrink:0,borderRight:"1px solid "+dark3,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <div style={{padding:"18px 16px 12px",borderBottom:"1px solid "+dark3,flexShrink:0}}>
-          <div style={{fontSize:16,fontWeight:900,color:gold,letterSpacing:-0.5}}>TheContentHub</div>
-          <div style={{fontSize:9,color:muted,letterSpacing:3,marginTop:2}}>REVO LABS</div>
+      <div style={{width:220,background:C.sidebar,flexShrink:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{padding:"20px 16px 14px",borderBottom:"1px solid #1E293B"}}>
+          <div style={{fontSize:16,fontWeight:900,color:C.sideGold,letterSpacing:-0.5}}>TheContentHub</div>
+          <div style={{fontSize:9,color:C.sideMuted,letterSpacing:3,marginTop:3}}>🚀 REVO LABS · ADMIN</div>
         </div>
-        <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
-          <div onClick={() => setPage("dashboard")}
-            style={{display:"flex",alignItems:"center",gap:8,padding:"8px 14px",cursor:"pointer",fontSize:13,
-              fontWeight:page==="dashboard"?600:400, color:page==="dashboard"?gold:muted2,
-              borderLeft:page==="dashboard"?"2px solid "+gold:"2px solid transparent",
-              background:page==="dashboard"?"rgba(212,160,23,.07)":"transparent"}}>
-            <span style={{fontSize:15}}>◻</span> Dashboard
-          </div>
+        <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
+          {mainPages.map(p=>(
+            <div key={p.id} onClick={()=>setPage(p.id)} style={{
+              padding:"9px 16px",cursor:"pointer",fontSize:13,
+              fontWeight:page===p.id?600:400,
+              color:page===p.id?C.sideGold:C.sideText,
+              borderLeft:page===p.id?`2px solid ${C.sideGold}`:"2px solid transparent",
+              background:page===p.id?"rgba(245,158,11,.1)":"transparent",
+            }}>
+              {p.label}
+            </div>
+          ))}
           {withData.length > 0 && <>
-            <div style={{padding:"12px 14px 4px",fontSize:9,color:muted,letterSpacing:3,fontWeight:600}}>ACTIVOS</div>
-            {withData.map(c => navItem(c.id, c.name, green))}
+            <div style={{padding:"14px 16px 4px",fontSize:9,color:C.sideMuted,letterSpacing:3,fontWeight:700}}>ACTIVOS</div>
+            {withData.map(c => navItem(c.id, c.name, "#22C55E"))}
           </>}
           {noData.length > 0 && <>
-            <div style={{padding:"12px 14px 4px",fontSize:9,color:muted,letterSpacing:3,fontWeight:600}}>SIN DATOS</div>
-            {noData.map(c => navItem(c.id, c.name, dark3))}
+            <div style={{padding:"14px 16px 4px",fontSize:9,color:C.sideMuted,letterSpacing:3,fontWeight:700}}>SIN DATOS</div>
+            {noData.map(c => navItem(c.id, c.name, "#334155"))}
           </>}
         </div>
-        <div style={{padding:"10px 14px",borderTop:"1px solid "+dark3,flexShrink:0}}>
-          <div style={{fontSize:10,color:muted,wordBreak:"break-all"}}>humberto@revolabsmedia.com</div>
-          <div style={{fontSize:9,color:"#334155",marginTop:1}}>CSO · REVO Labs</div>
+        <div style={{padding:"12px 16px",borderTop:"1px solid #1E293B"}}>
+          <div style={{fontSize:11,color:C.sideMuted,wordBreak:"break-all"}}>humberto@revolabsmedia.com</div>
+          <div style={{fontSize:9,color:"#334155",marginTop:2}}>CSO · REVO Labs</div>
           <button onClick={logout} style={{marginTop:8,background:"none",border:"none",color:"#EF4444",fontSize:11,cursor:"pointer",padding:0}}>
-            Cerrar sesión
+            Cerrar sesión →
           </button>
         </div>
       </div>
 
       {/* Main */}
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <div style={{background:dark1,borderBottom:"1px solid "+dark3,padding:"0 24px",height:50,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-          <div style={{fontSize:14,fontWeight:600}}>{activeClient ? activeClient.name : "Agency Dashboard"}</div>
-          <button onClick={() => setModal(activeClient?.id || "")}
-            style={{padding:"7px 16px",background:gold,color:dark0,border:"none",borderRadius:7,cursor:"pointer",fontSize:12,fontWeight:700}}>
-            + Agregar video
-          </button>
+        {/* Topbar */}
+        <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 24px",height:54,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,boxShadow:shadow}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text}}>
+            {page==="dashboard"?"📊 Dashboard":page==="creative"?"🧠 Inteligencia Creativa":page==="team"?"👥 Equipo":activeClient?.name||""}
+          </div>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <DateRangePicker value={range} onChange={setRange}/>
+            <Btn onClick={()=>setModal(activeClient?.id||"")} primary>+ Video</Btn>
+          </div>
         </div>
-        <div style={{flex:1,overflowY:"auto",padding:22}}>
-          {page === "dashboard" && <Dashboard clients={clients} videos={videos} onClient={setPage} />}
-          {activeClient && <ClientPage client={activeClient} videos={videos} onAdd={() => setModal(activeClient.id)} />}
+
+        {/* Content */}
+        <div style={{flex:1,overflowY:"auto",padding:24}}>
+          {page==="dashboard" && <Dashboard  clients={clients} videos={filtered} onClient={setPage}/>}
+          {page==="creative"  && <CreativePage videos={filtered}/>}
+          {page==="team"      && <TeamPage    videos={filtered}/>}
+          {activeClient       && <ClientPage  client={activeClient} videos={filtered} onAdd={()=>setModal(activeClient.id)}/>}
         </div>
       </div>
 
-      {/* Modal */}
       {modal !== null && (
-        <AddModal clients={clients} defaultClientId={modal} onSave={addVideo} onClose={() => setModal(null)} />
+        <AddModal clients={clients} defaultClientId={modal} onSave={addVideo} onClose={()=>setModal(null)}/>
       )}
     </div>
   );
