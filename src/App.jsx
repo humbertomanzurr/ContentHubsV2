@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { supabase } from "./lib/supabase.js";
+import { createClient } from "@supabase/supabase-js";
+const supabase = createClient(
+  "https://shvbedzlxkqfvrsvarzl.supabase.co",
+  "sb_publishable_EmPNZRHeDUNoDJrH150hoQ_6NoiA_zr"
+);
 
 // ── TAXONOMY ───────────────────────────────────────────────────────────────────
 const HOOKS      = ["Impacto","Curiosidad","Historia","Transformacion","POV","Deseo","Antes/Despues","Pregunta","Estadistica","Problema","Error","Controversia","Comparacion","Autoridad","Miedo","Reto"];
