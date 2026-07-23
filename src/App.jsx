@@ -175,9 +175,9 @@ function Login({onLogin}){
     setLoading(true);setErr("");
     const{data,error}=await supabase.auth.signInWithPassword({email,password:pass});
     if(error){setErr("Credenciales incorrectas ❌");setLoading(false);return;}
-    // Get profile
-    const{data:profile}=await supabase.from("profiles").select("*").eq("id",data.user.id).single();
-    onLogin(data.user, profile||{role:"community",client_id:null});
+    // Get profile — use maybeSingle() so missing profile doesn't throw
+    const{data:prof}=await supabase.from("profiles").select("*").eq("id",data.user.id).maybeSingle();
+    onLogin(data.user, prof||{role:"community",client_id:null,name:data.user.email});
     setLoading(false);
   };
 
@@ -1049,11 +1049,14 @@ export default function App(){
   // ── Check existing session ──────────────────────────────────────────────────
   useEffect(()=>{
     (async()=>{
-      const{data:{session}}=await supabase.auth.getSession();
-      if(session?.user){
-        const{data:prof}=await supabase.from("profiles").select("*").eq("id",session.user.id).single();
-        setUser(session.user);setProfile(prof||{role:"community",client_id:null});
-      }
+      try{
+        const{data:{session}}=await supabase.auth.getSession();
+        if(session?.user){
+          const{data:prof}=await supabase.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
+          setUser(session.user);
+          setProfile(prof||{role:"community",client_id:null,name:session.user.email});
+        }
+      }catch(e){console.error("Session error:",e);}
       setLoading(false);
     })();
   },[]);
@@ -1153,7 +1156,11 @@ export default function App(){
             ?<Card style={{textAlign:"center",padding:40}}>
               <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
               <div style={{fontSize:15,fontWeight:700,color:C.text}}>Sin cliente asignado</div>
-              <div style={{fontSize:13,color:C.muted,marginTop:6}}>Pídele al admin que te asigne a un cliente en ⚙️ Configuración → Usuarios</div>
+              <div style={{fontSize:13,color:C.muted,marginTop:6,marginBottom:16}}>Pídele al admin que te asigne a un cliente en ⚙️ Configuración → Usuarios</div>
+              <div style={{fontSize:11,color:C.muted,background:C.light,padding:12,borderRadius:8}}>
+                ¿Eres admin? Ejecuta este SQL en Supabase para darte acceso:<br/>
+                <code style={{fontSize:10,color:C.accent}}>INSERT INTO profiles (id, name, role) SELECT id, 'Tu nombre', 'admin' FROM auth.users WHERE email = '{user?.email}' ON CONFLICT (id) DO UPDATE SET role = 'admin';</code>
+              </div>
              </Card>
             :<PipelinePage clients={clients} employees={employees} cards={cards} videos={videos} targets={targets} role="community" communityClientId={selClientId} onSetTargets={()=>{}} onMoveCard={moveCard} onDeleteCard={deleteCard}/>
           }
