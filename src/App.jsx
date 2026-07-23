@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(
   "https://shvbedzlxkqfvrsvarzl.supabase.co",
-  "sb_publishable_EmPNZRHeDUNoDJrH150hoQ_6NoiA_zr"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNodmJlZHpseGtxZnZyc3ZhcnpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NTUzOTQsImV4cCI6MjEwMDMzMTM5NH0.-Q6aOXkYaGgb3z939Dq0KMZFpJ-e8mo7zmsWLOzpeoM"
 );
 
 // ── TAXONOMY ───────────────────────────────────────────────────────────────────
