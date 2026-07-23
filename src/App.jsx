@@ -1,11 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-
-// ── AUTH ───────────────────────────────────────────────────────────────────────
-const USERS = {
-  admin:     { email:"humberto@revolabsmedia.com",  password:"Revo2026!",      role:"admin" },
-  community: { email:"community@revolabsmedia.com", password:"Community2026!", role:"community" },
-};
+import { supabase } from "./lib/supabase.js";
 
 // ── TAXONOMY ───────────────────────────────────────────────────────────────────
 const HOOKS      = ["Impacto","Curiosidad","Historia","Transformacion","POV","Deseo","Antes/Despues","Pregunta","Estadistica","Problema","Error","Controversia","Comparacion","Autoridad","Miedo","Reto"];
@@ -24,8 +19,6 @@ const DATE_RANGES = [
   { value:"month",  label:"Este mes" },
   { value:"week",   label:"Esta semana" },
 ];
-
-// ── PIPELINE ───────────────────────────────────────────────────────────────────
 const STAGES = [
   { id:"brief",      label:"📋 Brief",      color:"#3B82F6", communityCanMove:true  },
   { id:"produccion", label:"🎬 Producción",  color:"#8B5CF6", communityCanMove:true  },
@@ -36,82 +29,45 @@ const STAGES = [
   { id:"metricas",   label:"📊 Métricas",   color:"#059669", communityCanMove:true  },
 ];
 
-const NOW        = new Date();
-const curMonth   = () => `${NOW.getFullYear()}-${String(NOW.getMonth()+1).padStart(2,"0")}`;
-const daysAfterPublish = card => card.publishDate ? Math.floor((NOW - new Date(card.publishDate)) / 864e5) : 0;
-const metricsUnlocked  = card => card.stage === "metricas" && daysAfterPublish(card) >= 7;
-const daysUntil        = card => Math.max(0, 7 - daysAfterPublish(card));
-
-// ── SEED DATA ──────────────────────────────────────────────────────────────────
-const SEED_CLIENTS = [
-  { id:"tony",     name:"Tony",          industry:"Retail",       status:"active", am:"Sofia",  goal:"Brand awareness + crecimiento" },
-  { id:"unitam",   name:"Unitam",        industry:"Moda",         status:"active", am:"Sofia",  goal:"Engagement y comunidad" },
-  { id:"solanum",  name:"Solanum",       industry:"Fitness",      status:"active", am:"Sofia",  goal:"Brand awareness — debut" },
-  { id:"celularte",name:"Celularte",     industry:"Retail",       status:"pending",am:"Sofia",  goal:"Ventas y tráfico" },
-  { id:"carso",    name:"Grupo Carso",   industry:"Conglomerado", status:"pending",am:"Sofia",  goal:"Presencia digital" },
-  { id:"fredinero",name:"Fredinero",     industry:"Fintech",      status:"pending",am:"Sofia",  goal:"Generación de leads" },
-  { id:"matera",   name:"Matera Motors", industry:"Automotriz",   status:"pending",am:"Sofia",  goal:"Awareness" },
-];
-const SEED_EMPLOYEES = [
-  { id:"e009",name:"Paco",   role:"Editor",            status:"active" },
-  { id:"e010",name:"Danny",  role:"Editor",            status:"active" },
-  { id:"e011",name:"Cristian",role:"Editor",           status:"active" },
-  { id:"e012",name:"Itzel",  role:"Community Manager", status:"active" },
-  { id:"e013",name:"Ivanna", role:"Community Manager", status:"active" },
-  { id:"e014",name:"Paula",  role:"Community Manager", status:"active" },
-  { id:"e015",name:"Larissa",role:"Community Manager", status:"active" },
-];
-const SEED_VIDEOS = [
-  { id:"v001",clientId:"tony",   title:"TOP INESPERADO",             platform:"TikTok",publishDate:"2026-06-23",creator:"Álvaro Salinas",   editor:"Paco", cm:"Itzel", producer:"",hook:"Impacto",      format:"Demostracion de Producto",cta:"Seguir",        trigger:"Sorprendente", pillar:"Entretenimiento",        pauta:800,views:56000,likes:2100,comments:340,shares:890, saves:760,duration:45,watchTimeAvg:28,followers:520,paraTi:84,siguiendo:11,busqueda:5  },
-  { id:"v002",clientId:"tony",   title:"COLECCIÓN MUNDIAL",          platform:"TikTok",publishDate:"2026-06-25",creator:"Santiago Paniagua",editor:"Paco", cm:"Itzel", producer:"",hook:"Impacto",      format:"Tendencia",               cta:"Compartir",     trigger:"Inspirador",   pillar:"Entretenimiento",        pauta:800,views:53000,likes:1980,comments:290,shares:1200,saves:430,duration:38,watchTimeAvg:24,followers:490,paraTi:81,siguiendo:13,busqueda:6  },
-  { id:"v003",clientId:"tony",   title:"HAÚL ASMR",                  platform:"TikTok",publishDate:"2026-06-13",creator:"Ivanna Paniagua", editor:"Paco", cm:"Paula", producer:"",hook:"Impacto",      format:"Demostracion de Producto",cta:"Guardar",       trigger:"Satisfaccion", pillar:"Entretenimiento",        pauta:714,views:33000,likes:1450,comments:210,shares:340, saves:890,duration:52,watchTimeAvg:31,followers:310,paraTi:76,siguiendo:16,busqueda:8  },
-  { id:"v004",clientId:"tony",   title:"SEMANA SMARTY",              platform:"TikTok",publishDate:"2026-06-22",creator:"Álvaro Salinas",   editor:"Danny",cm:"Itzel", producer:"",hook:"Impacto",      format:"Hablando a Camara",       cta:"Seguir",        trigger:"Curiosidad",   pillar:"Educacion",              pauta:840,views:32000,likes:1230,comments:450,shares:280, saves:340,duration:41,watchTimeAvg:26,followers:290,paraTi:72,siguiendo:20,busqueda:8  },
-  { id:"v005",clientId:"tony",   title:"Lo hicimos real",            platform:"TikTok",publishDate:"2026-06-03",creator:"Efrén",           editor:"Danny",cm:"Itzel", producer:"",hook:"Transformacion",format:"Tutorial",                cta:"Guardar",       trigger:"Inspirador",   pillar:"Educacion",              pauta:410,views:27300,likes:980, comments:320,shares:180, saves:720,duration:58,watchTimeAvg:34,followers:250,paraTi:68,siguiendo:22,busqueda:10 },
-  { id:"v006",clientId:"tony",   title:"Vibras de verano",           platform:"TikTok",publishDate:"2026-06-05",creator:"Ivanna Paniagua", editor:"Danny",cm:"Paula", producer:"",hook:"Deseo",        format:"Voz en Off",              cta:"Seguir",        trigger:"Identificable",pillar:"Entretenimiento",        pauta:410,views:25000,likes:920, comments:180,shares:420, saves:290,duration:30,watchTimeAvg:19,followers:230,paraTi:65,siguiendo:24,busqueda:11 },
-  { id:"v007",clientId:"tony",   title:"REGALO PARA PAPÁ",           platform:"TikTok",publishDate:"2026-06-19",creator:"Álvaro Salinas",   editor:"Danny",cm:"Itzel", producer:"",hook:"Antes/Despues",format:"Tutorial",                cta:"Comprar",       trigger:"Deseo",        pillar:"Conversion",             pauta:400,views:20000,likes:760, comments:290,shares:120, saves:480,duration:44,watchTimeAvg:22,followers:180,paraTi:61,siguiendo:28,busqueda:11 },
-  { id:"v008",clientId:"tony",   title:"PARA MI PAPÁ ES",            platform:"TikTok",publishDate:"2026-06-21",creator:"Hugo",            editor:"Danny",cm:"Itzel", producer:"",hook:"Deseo",        format:"Tendencia",               cta:"Sin CTA",       trigger:"Identificable",pillar:"Entretenimiento",        pauta:400,views:7461, likes:890, comments:340,shares:120, saves:220,duration:22,watchTimeAvg:14,followers:70, paraTi:42,siguiendo:48,busqueda:10 },
-  { id:"v009",clientId:"tony",   title:"EXPERTONY CONTESTA P.3",     platform:"TikTok",publishDate:"2026-06-29",creator:"Álvaro Salinas",   editor:"Danny",cm:"Itzel", producer:"",hook:"Pregunta",     format:"Hablando a Camara",       cta:"Comentar",      trigger:"Curiosidad",   pillar:"Comunidad",              pauta:0,  views:849,  likes:45,  comments:89, shares:12,  saves:23, duration:35,watchTimeAvg:18,followers:8,  paraTi:38,siguiendo:55,busqueda:7  },
-  { id:"v010",clientId:"unitam", title:"¡Ya llego a Unitam!",        platform:"TikTok",publishDate:"2026-06-15",creator:"Álvaro Salinas",   editor:"Danny",cm:"Ivanna",producer:"",hook:"Impacto",      format:"Hablando a Camara",       cta:"Visitar Perfil",trigger:"Sorprendente", pillar:"Entretenimiento",        pauta:800,views:46000,likes:1780,comments:390,shares:650, saves:420,duration:28,watchTimeAvg:19,followers:420,paraTi:79,siguiendo:15,busqueda:6  },
-  { id:"v011",clientId:"unitam", title:"Playeras nuevas",            platform:"TikTok",publishDate:"2026-06-12",creator:"Paco",            editor:"Danny",cm:"Ivanna",producer:"",hook:"POV",          format:"Tendencia",               cta:"Compartir",     trigger:"Identificable",pillar:"Entretenimiento",        pauta:800,views:40000,likes:1560,comments:280,shares:890, saves:340,duration:18,watchTimeAvg:14,followers:370,paraTi:77,siguiendo:17,busqueda:6  },
-  { id:"v012",clientId:"unitam", title:"Prompt Guion Viral ChatGPT", platform:"TikTok",publishDate:"2026-06-29",creator:"Galilea Espinoza",editor:"Paco", cm:"Ivanna",producer:"",hook:"Curiosidad",   format:"Hablando a Camara",       cta:"Guardar",       trigger:"Educativo",    pillar:"Educacion",              pauta:0,  views:12000,likes:580, comments:210,shares:180, saves:890,duration:45,watchTimeAvg:32,followers:110,paraTi:88,siguiendo:8, busqueda:4  },
-  { id:"v013",clientId:"unitam", title:"1, 2, 3... ¡UNITAM!",        platform:"TikTok",publishDate:"2026-06-18",creator:"Mariana García",  editor:"Paco", cm:"Ivanna",producer:"",hook:"Historia",     format:"Tendencia",               cta:"Seguir",        trigger:"Gracioso",     pillar:"Entretenimiento",        pauta:200,views:8795, likes:340, comments:120,shares:89,  saves:67, duration:15,watchTimeAvg:12,followers:82, paraTi:55,siguiendo:36,busqueda:9  },
-  { id:"v014",clientId:"unitam", title:"Día del padre",              platform:"TikTok",publishDate:"2026-06-21",creator:"Álvaro Salinas",   editor:"Danny",cm:"Ivanna",producer:"",hook:"Deseo",        format:"Hablando a Camara",       cta:"Compartir",     trigger:"Identificable",pillar:"Entretenimiento",        pauta:200,views:7958, likes:310, comments:98, shares:120, saves:89, duration:22,watchTimeAvg:15,followers:74, paraTi:50,siguiendo:40,busqueda:10 },
-  { id:"v015",clientId:"unitam", title:"Tiempo Récord",              platform:"TikTok",publishDate:"2026-06-23",creator:"Mariana García",  editor:"Paco", cm:"Ivanna",producer:"",hook:"Impacto",      format:"Tutorial",                cta:"Guardar",       trigger:"Sorprendente", pillar:"Educacion",              pauta:200,views:719,  likes:34,  comments:18, shares:8,   saves:45, duration:30,watchTimeAvg:12,followers:7,  paraTi:31,siguiendo:58,busqueda:11 },
-  { id:"v016",clientId:"solanum",title:"This is Solanum",            platform:"TikTok",publishDate:"2026-06-16",creator:"Ana Paula",       editor:"Danny",cm:"Larissa",producer:"",hook:"Historia",     format:"Hablando a Camara",       cta:"Seguir",        trigger:"Inspirador",   pillar:"Reconocimiento de Marca",pauta:700,views:20000,likes:780, comments:210,shares:340, saves:290,duration:42,watchTimeAvg:26,followers:188,paraTi:70,siguiendo:22,busqueda:8  },
-];
-
 // ── HELPERS ────────────────────────────────────────────────────────────────────
-const fmt=n=>n>=1000000?(n/1000000).toFixed(1)+"M":n>=1000?(n/1000).toFixed(0)+"K":String(n||0);
-const pct=n=>n!=null?n+"%":"—";
-const eng=v=>v.views>0?(((v.likes+v.comments+v.shares+v.saves)/v.views)*100).toFixed(1)+"%":"—";
-const roiStr=v=>v.pauta>0&&v.views>0?"$"+(v.pauta/v.views*1000).toFixed(2)+"/1K":v.pauta===0?"🌱 Orgánico":"—";
-const cVids=(vs,id)=>vs.filter(v=>v.clientId===id);
-const totV=vs=>vs.reduce((s,v)=>s+v.views,0);
-const avgE=vs=>vs.length?(vs.reduce((s,v)=>s+(v.views>0?(v.likes+v.comments+v.shares+v.saves)/v.views:0),0)/vs.length*100).toFixed(1)+"%":"—";
-const avgParaTi=vs=>{const w=vs.filter(v=>v.paraTi!=null);return w.length?Math.round(w.reduce((s,v)=>s+v.paraTi,0)/w.length)+"%":"—";};
-const uid=()=>Math.random().toString(36).slice(2,10);
+const NOW          = new Date();
+const curMonth     = () => `${NOW.getFullYear()}-${String(NOW.getMonth()+1).padStart(2,"0")}`;
+const daysSince    = d  => d ? Math.floor((NOW - new Date(d)) / 864e5) : 0;
+const metricsOK    = c  => c.stage==="metricas" && daysSince(c.publishDate)>=7;
+const daysLeft     = c  => Math.max(0, 7-daysSince(c.publishDate));
+const fmt          = n  => n>=1000000?(n/1000000).toFixed(1)+"M":n>=1000?(n/1000).toFixed(0)+"K":String(n||0);
+const pct          = n  => n!=null?n+"%":"—";
+const eng          = v  => v.views>0?(((v.likes+v.comments+v.shares+v.saves)/v.views)*100).toFixed(1)+"%":"—";
+const roiStr       = v  => v.pauta>0&&v.views>0?"$"+(v.pauta/v.views*1000).toFixed(2)+"/1K":v.pauta===0?"🌱 Orgánico":"—";
+const cVids        = (vs,id) => vs.filter(v=>v.clientId===id);
+const totV         = vs => vs.reduce((s,v)=>s+v.views,0);
+const avgE         = vs => vs.length?(vs.reduce((s,v)=>s+(v.views>0?(v.likes+v.comments+v.shares+v.saves)/v.views:0),0)/vs.length*100).toFixed(1)+"%":"—";
+const avgParaTi    = vs => { const w=vs.filter(v=>v.paraTi!=null); return w.length?Math.round(w.reduce((s,v)=>s+v.paraTi,0)/w.length)+"%":"—"; };
+const uid          = () => Math.random().toString(36).slice(2,10);
 
-const groupBy=(vs,key)=>{
+const groupBy = (vs,key) => {
   const m={};
   vs.forEach(v=>{if(!v[key])return;if(!m[v[key]])m[v[key]]={n:0,s:0};m[v[key]].n++;m[v[key]].s+=v.views;});
   return Object.entries(m).map(([k,d])=>({name:k,avg:Math.round(d.s/d.n),n:d.n})).sort((a,b)=>b.avg-a.avg);
 };
-const filterByDate=(videos,range)=>{
+
+const filterByDate = (videos,range) => {
   if(range==="all")return videos;
-  const now=NOW;let start;
-  if(range==="year")  start=new Date("2026-01-01");
+  const now=NOW; let start;
+  if(range==="year")  start=new Date(`${now.getFullYear()}-01-01`);
   if(range==="90days")start=new Date(+now-90*864e5);
   if(range==="30days")start=new Date(+now-30*864e5);
-  if(range==="month") start=new Date("2026-07-01");
+  if(range==="month") start=new Date(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`);
   if(range==="week")  start=new Date(+now-7*864e5);
-  return videos.filter(v=>new Date(v.publishDate)>=start);
+  return videos.filter(v=>v.publishDate&&new Date(v.publishDate)>=start);
 };
-const teamStats=videos=>{
+
+const teamStats = videos => {
   const roles={creator:{},editor:{},cm:{},producer:{}};
   videos.forEach(v=>{
     [["creator",v.creator],["editor",v.editor],["cm",v.cm],["producer",v.producer]].forEach(([role,name])=>{
       if(!name)return;
-      if(!roles[role][name])roles[role][name]={videos:[],name,role};
+      if(!roles[role][name])roles[role][name]={videos:[],name};
       roles[role][name].videos.push(v);
     });
   });
@@ -123,10 +79,43 @@ const teamStats=videos=>{
   return{creators:rank(roles.creator),editors:rank(roles.editor),cms:rank(roles.cm),producers:rank(roles.producer)};
 };
 
-// ── STORAGE ────────────────────────────────────────────────────────────────────
-const store={
-  get:k=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}},
-  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}},
+// ── DB TRANSFORMS ─────────────────────────────────────────────────────────────
+const dbToVideo = r => ({
+  id:r.id, clientId:r.client_id, title:r.title, platform:r.platform,
+  publishDate:r.publish_date, creator:r.creator||"", editor:r.editor||"",
+  cm:r.cm||"", producer:r.producer||"", hook:r.hook||"", format:r.format||"",
+  cta:r.cta||"", trigger:r.trigger||"", pillar:r.pillar||"",
+  pauta:r.pauta||0, views:r.views||0, likes:r.likes||0, comments:r.comments||0,
+  shares:r.shares||0, saves:r.saves||0, duration:r.duration||0,
+  watchTimeAvg:r.watch_time_avg||0, followers:r.followers||0,
+  paraTi:r.para_ti, siguiendo:r.siguiendo, busqueda:r.busqueda,
+});
+const videoToDB = v => ({
+  id:v.id, client_id:v.clientId, title:v.title, platform:v.platform||"TikTok",
+  publish_date:v.publishDate, creator:v.creator||"", editor:v.editor||"",
+  cm:v.cm||"", producer:v.producer||"", hook:v.hook||"", format:v.format||"",
+  cta:v.cta||"", trigger:v.trigger||"", pillar:v.pillar||"",
+  pauta:v.pauta||0, views:v.views||0, likes:v.likes||0, comments:v.comments||0,
+  shares:v.shares||0, saves:v.saves||0, duration:v.duration||0,
+  watch_time_avg:v.watchTimeAvg||0, followers:v.followers||0,
+  para_ti:v.paraTi||null, siguiendo:v.siguiendo||null, busqueda:v.busqueda||null,
+});
+const dbToCard = r => ({
+  id:r.id, clientId:r.client_id, title:r.title, editor:r.editor||"",
+  dueDate:r.due_date, platform:r.platform||"TikTok", stage:r.stage,
+  month:r.month, createdAt:r.created_at, publishDate:r.publish_date,
+  revisionCount:r.revision_count||0,
+});
+const cardToDB = c => ({
+  id:c.id, client_id:c.clientId, title:c.title, editor:c.editor||"",
+  due_date:c.dueDate||null, platform:c.platform||"TikTok", stage:c.stage,
+  month:c.month, created_at:c.createdAt||NOW.toISOString().slice(0,10),
+  publish_date:c.publishDate||null, revision_count:c.revisionCount||0,
+});
+const dbToTargets = rows => {
+  const obj={};
+  rows.forEach(r=>{if(!obj[r.month])obj[r.month]={};obj[r.month][r.client_id]=r.target;});
+  return obj;
 };
 
 // ── COLORS ─────────────────────────────────────────────────────────────────────
@@ -137,7 +126,7 @@ const C={
   red:"#DC2626",amber:"#F59E0B",
   sidebar:"#0F172A",sideGold:"#F59E0B",sideText:"#CBD5E1",sideMuted:"#475569",
 };
-const shadow="0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04)";
+const shadow  ="0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04)";
 const shadowMd="0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.04)";
 
 // ── SHARED UI ─────────────────────────────────────────────────────────────────
@@ -156,14 +145,14 @@ const Card=({children,pad=20,style={}})=>(
 const SecTitle=({children})=>(
   <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.5,marginBottom:14,textTransform:"uppercase"}}>{children}</div>
 );
-const Btn=({children,primary,danger,onClick,small,style={}})=>(
-  <button onClick={onClick} style={{
+const Btn=({children,primary,danger,onClick,small,disabled,style={}})=>(
+  <button onClick={onClick} disabled={disabled} style={{
     padding:small?"6px 12px":"9px 18px",
     background:primary?C.text:danger?"#FEE2E2":C.surface,
     color:primary?"#FFF":danger?C.red:C.text,
     border:`1px solid ${primary?C.text:danger?"#FECACA":C.border}`,
-    borderRadius:8,cursor:"pointer",fontSize:small?12:13,fontWeight:600,
-    boxShadow:shadow,...style
+    borderRadius:8,cursor:disabled?"not-allowed":"pointer",fontSize:small?12:13,fontWeight:600,
+    opacity:disabled?.5:1,boxShadow:shadow,...style
   }}>{children}</button>
 );
 const inp={width:"100%",background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box"};
@@ -179,10 +168,19 @@ function Login({onLogin}){
   const[email,setEmail]=useState("");
   const[pass,setPass]=useState("");
   const[err,setErr]=useState("");
-  const go=()=>{
-    const user=Object.values(USERS).find(u=>u.email===email&&u.password===pass);
-    if(user)onLogin(user.role);else setErr("Credenciales incorrectas ❌");
+  const[loading,setLoading]=useState(false);
+
+  const go=async()=>{
+    if(!email||!pass)return;
+    setLoading(true);setErr("");
+    const{data,error}=await supabase.auth.signInWithPassword({email,password:pass});
+    if(error){setErr("Credenciales incorrectas ❌");setLoading(false);return;}
+    // Get profile
+    const{data:profile}=await supabase.from("profiles").select("*").eq("id",data.user.id).single();
+    onLogin(data.user, profile||{role:"community",client_id:null});
+    setLoading(false);
   };
+
   return(
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif"}}>
       <div style={{width:360,padding:40,background:C.surface,borderRadius:20,border:`1px solid ${C.border}`,boxShadow:shadowMd}}>
@@ -193,16 +191,13 @@ function Login({onLogin}){
         {[["📧 Email","email",email,setEmail],["🔒 Contraseña","password",pass,setPass]].map(([l,t,v,sv])=>(
           <div key={l} style={{marginBottom:16}}>
             <div style={{fontSize:12,color:C.muted,marginBottom:6,fontWeight:500}}>{l}</div>
-            <input type={t} value={v} onChange={x=>sv(x.target.value)} onKeyDown={x=>x.key==="Enter"&&go()}
-              placeholder={t==="email"?"humberto@revolabsmedia.com":""} style={inp}/>
+            <input type={t} value={v} onChange={x=>sv(x.target.value)} onKeyDown={x=>x.key==="Enter"&&go()} style={inp}/>
           </div>
         ))}
         {err&&<div style={{color:C.red,fontSize:12,marginBottom:12}}>{err}</div>}
-        <button onClick={go} style={{width:"100%",padding:13,background:C.text,color:"#FFF",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",marginTop:4}}>Entrar →</button>
-        <div style={{marginTop:20,padding:12,background:C.light,borderRadius:8,fontSize:11,color:C.muted}}>
-          <div>👑 Admin: humberto@revolabsmedia.com / Revo2026!</div>
-          <div style={{marginTop:4}}>👥 Community: community@revolabsmedia.com / Community2026!</div>
-        </div>
+        <button onClick={go} disabled={loading} style={{width:"100%",padding:13,background:C.text,color:"#FFF",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer",opacity:loading?.7:1,marginTop:4}}>
+          {loading?"Entrando...":"Entrar →"}
+        </button>
       </div>
     </div>
   );
@@ -212,9 +207,10 @@ function Login({onLogin}){
 function SetTargetsModal({clients,targets,month,onSave,onClose}){
   const active=clients.filter(c=>c.status!=="archived");
   const[vals,setVals]=useState(()=>active.reduce((o,c)=>({...o,[c.id]:targets[month]?.[c.id]||""}),{}));
-  const save=()=>{
-    const t={...targets,[month]:Object.fromEntries(Object.entries(vals).map(([k,v])=>[k,+v||0]))};
-    onSave(t);onClose();
+  const save=async()=>{
+    const rows=Object.entries(vals).map(([clientId,target])=>({month,client_id:clientId,target:+target||0}));
+    await supabase.from("targets").upsert(rows,{onConflict:"month,client_id"});
+    onSave();onClose();
   };
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
@@ -246,10 +242,11 @@ function AddCardModal({clients,employees,defaultClientId,role,onSave,onClose}){
   const activeEmps=employees.filter(e=>e.status==="active");
   const[f,sf]=useState({clientId:defaultClientId||"",title:"",editor:"",dueDate:"",platform:"TikTok"});
   const set=(k,v)=>sf(p=>({...p,[k]:v}));
-  const save=()=>{
+  const save=async()=>{
     if(!f.clientId||!f.title.trim())return;
-    onSave({...f,id:"c"+Date.now(),stage:"brief",month:curMonth(),createdAt:NOW.toISOString().slice(0,10),publishDate:null,revisionCount:0});
-    onClose();
+    const card={...f,id:"c"+Date.now(),stage:"brief",month:curMonth(),createdAt:NOW.toISOString().slice(0,10),publishDate:null,revisionCount:0};
+    await supabase.from("cards").insert(cardToDB(card));
+    onSave();onClose();
   };
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
@@ -258,24 +255,13 @@ function AddCardModal({clients,employees,defaultClientId,role,onSave,onClose}){
           <div style={{fontSize:17,fontWeight:800,color:C.text}}>📋 Nuevo video al pipeline</div>
           <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer"}}>×</button>
         </div>
-        {[
-          ["Cliente","clientId","sel"],
-          ["Título del video","title","text"],
-          ["Editor","editor","empsel"],
-          ["Fecha límite","dueDate","date"],
-        ].map(([l,k,t])=>(
+        {[["Cliente","clientId","sel"],["Título del video","title","text"],["Editor","editor","empsel"],["Fecha límite","dueDate","date"]].map(([l,k,t])=>(
           <div key={k} style={{marginBottom:14}}>
             <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
             {t==="sel"
-              ?<select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}>
-                <option value="">Seleccionar...</option>
-                {(defaultClientId?activeClients.filter(c=>c.id===defaultClientId):activeClients).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-               </select>
+              ?<select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}><option value="">Seleccionar...</option>{activeClients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
               :t==="empsel"
-              ?<select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}>
-                <option value="">Sin asignar</option>
-                {activeEmps.map(e=><option key={e.id} value={e.name}>{e.name} ({e.role})</option>)}
-               </select>
+              ?<select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}><option value="">Sin asignar</option>{activeEmps.map(e=><option key={e.id} value={e.name}>{e.name} ({e.role})</option>)}</select>
               :<input type={t} value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}/>
             }
           </div>
@@ -290,18 +276,28 @@ function AddCardModal({clients,employees,defaultClientId,role,onSave,onClose}){
 }
 
 // ── METRICS MODAL ─────────────────────────────────────────────────────────────
-function MetricsModal({card,employees,onSave,onClose}){
-  const activeEmps=employees.filter(e=>e.status==="active");
-  const[f,sf]=useState({
-    creator:"",hook:"",format:"",cta:"",trigger:"",pillar:"",duration:"",
-    views:"",likes:"",comments:"",shares:"",saves:"",followers:"",watchTimeAvg:"",pauta:"0",
-    paraTi:"",siguiendo:"",busqueda:"",
-  });
+function MetricsModal({card,onSave,onClose}){
+  const[f,sf]=useState({creator:"",hook:"",format:"",cta:"",trigger:"",pillar:"",duration:"",views:"",likes:"",comments:"",shares:"",saves:"",followers:"",watchTimeAvg:"",pauta:"0",paraTi:"",siguiendo:"",busqueda:""});
   const set=(k,v)=>sf(p=>({...p,[k]:v}));
-  const save=()=>{
+  const save=async()=>{
     const nums=["views","likes","comments","shares","saves","followers","watchTimeAvg","pauta","paraTi","siguiendo","busqueda","duration"];
-    onSave({...f,...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})});
-    onClose();
+    const metrics={...f,...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})};
+    // Create video
+    const vid={
+      id:"v"+Date.now(), clientId:card.clientId, title:card.title,
+      platform:card.platform||"TikTok", publishDate:card.publishDate,
+      editor:card.editor||"", cm:"", producer:"",
+      creator:metrics.creator||"", hook:metrics.hook||"", format:metrics.format||"",
+      cta:metrics.cta||"", trigger:metrics.trigger||"", pillar:metrics.pillar||"",
+      pauta:metrics.pauta||0, views:metrics.views||0, likes:metrics.likes||0,
+      comments:metrics.comments||0, shares:metrics.shares||0, saves:metrics.saves||0,
+      duration:metrics.duration||0, watchTimeAvg:metrics.watchTimeAvg||0,
+      followers:metrics.followers||0, paraTi:metrics.paraTi||null,
+      siguiendo:metrics.siguiendo||null, busqueda:metrics.busqueda||null,
+    };
+    await supabase.from("videos").insert(videoToDB(vid));
+    await supabase.from("cards").delete().eq("id",card.id);
+    onSave();onClose();
   };
   const g2={display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
   const fld=(l,k,t="text",opts)=>(
@@ -316,21 +312,12 @@ function MetricsModal({card,employees,onSave,onClose}){
     <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:999,paddingTop:24,paddingBottom:24,overflowY:"auto"}}>
       <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:shadowMd,width:"min(640px,95vw)",fontFamily:"system-ui,sans-serif"}}>
         <div style={{padding:"22px 26px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div>
-            <div style={{fontSize:17,fontWeight:800,color:C.text}}>📊 Agregar métricas</div>
-            <div style={{fontSize:12,color:C.muted,marginTop:2}}>{card.title}</div>
-          </div>
+          <div><div style={{fontSize:17,fontWeight:800,color:C.text}}>📊 Agregar métricas</div><div style={{fontSize:12,color:C.muted,marginTop:2}}>{card.title}</div></div>
           <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer"}}>×</button>
         </div>
         <div style={{padding:"14px 26px 26px"}}>
           {sec("🎨","ATRIBUTOS CREATIVOS")}
-          <div style={g2}>
-            <div style={{marginBottom:12}}>
-              <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>🎭 Creador / Talent</div>
-              <input value={f.creator} onChange={x=>set("creator",x.target.value)} style={inp} placeholder="Nombre del talent"/>
-            </div>
-            {fld("Duración (seg)","duration","number")}
-          </div>
+          <div style={g2}><div style={{marginBottom:12}}><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>🎭 Creador / Talent</div><input value={f.creator} onChange={x=>set("creator",x.target.value)} style={inp} placeholder="Nombre del talent"/></div>{fld("Duración (seg)","duration","number")}</div>
           <div style={g2}>{fld("🪝 Hook","hook","text",HOOKS)}{fld("🎬 Formato","format","text",FORMATS)}</div>
           <div style={g2}>{fld("CTA","cta","text",CTAS)}{fld("Disparador emocional","trigger","text",TRIGGERS)}</div>
           {fld("Pilar de contenido","pillar","text",PILLARS)}
@@ -340,15 +327,8 @@ function MetricsModal({card,employees,onSave,onClose}){
           <div style={g2}>{fld("🔖 Guardados","saves","number")}{fld("👤 Seguidores ganados","followers","number")}</div>
           <div style={g2}>{fld("⏱ Tiempo viz. prom. (seg)","watchTimeAvg","number")}{fld("💰 Pauta ($)","pauta","number")}</div>
           {sec("📡","FUENTES DE TRÁFICO")}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-            {fld("📱 % Para Ti","paraTi","number")}
-            {fld("👥 % Siguiendo","siguiendo","number")}
-            {fld("🔍 % Búsqueda","busqueda","number")}
-          </div>
-          <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
-            <Btn onClick={onClose}>Cancelar</Btn>
-            <Btn onClick={save} primary>Guardar y completar ✓</Btn>
-          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>{fld("📱 % Para Ti","paraTi","number")}{fld("👥 % Siguiendo","siguiendo","number")}{fld("🔍 % Búsqueda","busqueda","number")}</div>
+          <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}><Btn onClick={onClose}>Cancelar</Btn><Btn onClick={save} primary>Guardar y completar ✓</Btn></div>
         </div>
       </div>
     </div>
@@ -356,80 +336,47 @@ function MetricsModal({card,employees,onSave,onClose}){
 }
 
 // ── KANBAN CARD ───────────────────────────────────────────────────────────────
-function KanbanCard({card,clients,role,onMove,onApprove,onMetrics,onDelete,isDragging,onDragStart,onDragEnd}){
+function KanbanCard({card,clients,role,onMove,onMetrics,onDelete,isDragging,onDragStart,onDragEnd}){
+  const[confirmDel,setConfirmDel]=useState(false);
   const client=clients.find(c=>c.id===card.clientId);
   const stageIdx=STAGES.findIndex(s=>s.id===card.stage);
   const nextStage=STAGES[stageIdx+1];
   const prevStage=STAGES[stageIdx-1];
-  const isPublicado=card.stage==="publicado";
   const isMetricas=card.stage==="metricas";
-  const unlocked=metricsUnlocked(card);
-  const days=daysUntil(card);
+  const unlocked=metricsOK(card);
+  const days=daysLeft(card);
   const isOverdue=card.dueDate&&new Date(card.dueDate)<NOW&&card.stage!=="metricas";
   const stageInfo=STAGES.find(s=>s.id===card.stage);
-  const [confirmDel,setConfirmDel]=useState(false);
   const canDelete=role==="admin"||(role==="community"&&card.stage==="brief");
 
   return(
-    <div
-      draggable
-      onDragStart={e=>{e.dataTransfer.setData("cardId",card.id);onDragStart&&onDragStart(card.id);}}
-      onDragEnd={()=>onDragEnd&&onDragEnd()}
-      style={{
-        background:C.surface,borderRadius:10,padding:14,
-        border:`1px solid ${isOverdue?"#FECACA":isMetricas&&unlocked?"#BBF7D0":C.border}`,
-        boxShadow:isDragging?"0 8px 24px rgba(0,0,0,.2)":shadow,
-        marginBottom:10,cursor:"grab",opacity:isDragging?.3:1,
-        borderLeft:`3px solid ${stageInfo?.color||C.border}`,
-        transform:isDragging?"rotate(2deg)":"none",
-        transition:"transform .1s, box-shadow .1s",
-      }}>
-      {/* Client badge */}
+    <div draggable onDragStart={e=>{e.dataTransfer.setData("cardId",card.id);onDragStart&&onDragStart(card.id);}} onDragEnd={()=>onDragEnd&&onDragEnd()}
+      style={{background:C.surface,borderRadius:10,padding:14,border:`1px solid ${isOverdue?"#FECACA":isMetricas&&unlocked?"#BBF7D0":C.border}`,boxShadow:isDragging?"0 8px 24px rgba(0,0,0,.2)":shadow,marginBottom:10,cursor:"grab",opacity:isDragging?.3:1,borderLeft:`3px solid ${stageInfo?.color||C.border}`,transform:isDragging?"rotate(2deg)":"none",transition:"transform .1s"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
         <span style={{fontSize:10,fontWeight:700,background:C.accent+"18",color:C.accent,padding:"2px 7px",borderRadius:20}}>{client?.name||"—"}</span>
         {isOverdue&&<span style={{fontSize:10,fontWeight:700,color:C.red}}>⚠️ Vencido</span>}
         {isMetricas&&!unlocked&&<span style={{fontSize:10,color:C.muted}}>🔒 {days}d</span>}
         {isMetricas&&unlocked&&<span style={{fontSize:10,fontWeight:700,color:C.green}}>🔓 Listo</span>}
       </div>
-
-      {/* Title */}
       <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:6,lineHeight:1.3}}>{card.title}</div>
-
-      {/* Meta */}
       <div style={{fontSize:11,color:C.muted,marginBottom:8}}>
         {card.editor&&<div>✂️ {card.editor}</div>}
         {card.dueDate&&<div>📅 {card.dueDate}</div>}
-        {isPublicado&&card.publishDate&&<div>📱 Publicado {card.publishDate}</div>}
         {(card.revisionCount||0)>0&&<div style={{color:"#EC4899",fontWeight:700}}>🔄 {card.revisionCount} revisión{card.revisionCount>1?"es":""}</div>}
       </div>
-
-      {/* Actions */}
       <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-        {/* Community: move forward (except to publicado) */}
         {nextStage&&!(nextStage.id==="publicado"&&role==="community")&&card.stage!=="metricas"&&(
-          <button onClick={()=>onMove(card.id,nextStage.id)} style={{fontSize:11,padding:"4px 10px",background:C.light,border:`1px solid ${C.border}`,borderRadius:6,cursor:"pointer",color:C.text,fontWeight:600}}>
-            → {nextStage.label.split(" ")[1]}
-          </button>
+          <button onClick={()=>onMove(card.id,nextStage.id)} style={{fontSize:11,padding:"4px 10px",background:C.light,border:`1px solid ${C.border}`,borderRadius:6,cursor:"pointer",color:C.text,fontWeight:600}}>→ {nextStage.label.split(" ")[1]}</button>
         )}
-        {/* Admin only: approve to publicado */}
         {card.stage==="aprobacion"&&role==="admin"&&(
-          <button onClick={()=>onApprove(card.id)} style={{fontSize:11,padding:"4px 10px",background:"#DCFCE7",border:"1px solid #BBF7D0",borderRadius:6,cursor:"pointer",color:C.green,fontWeight:700}}>
-            ✅ Publicar
-          </button>
+          <button onClick={()=>onMove(card.id,"metricas",true)} style={{fontSize:11,padding:"4px 10px",background:"#DCFCE7",border:"1px solid #BBF7D0",borderRadius:6,cursor:"pointer",color:C.green,fontWeight:700}}>✅ Publicar</button>
         )}
-        {/* Admin: move back */}
         {prevStage&&role==="admin"&&(
-          <button onClick={()=>onMove(card.id,prevStage.id)} style={{fontSize:11,padding:"4px 10px",background:C.light,border:`1px solid ${C.border}`,borderRadius:6,cursor:"pointer",color:C.muted}}>
-            ← Back
-          </button>
+          <button onClick={()=>onMove(card.id,prevStage.id)} style={{fontSize:11,padding:"4px 10px",background:C.light,border:`1px solid ${C.border}`,borderRadius:6,cursor:"pointer",color:C.muted}}>← Back</button>
         )}
-        {/* Add metrics */}
         {isMetricas&&unlocked&&(
-          <button onClick={()=>onMetrics(card)} style={{fontSize:11,padding:"4px 10px",background:"#DCFCE7",border:"1px solid #BBF7D0",borderRadius:6,cursor:"pointer",color:C.green,fontWeight:700}}>
-            📊 Métricas
-          </button>
+          <button onClick={()=>onMetrics(card)} style={{fontSize:11,padding:"4px 10px",background:"#DCFCE7",border:"1px solid #BBF7D0",borderRadius:6,cursor:"pointer",color:C.green,fontWeight:700}}>📊 Métricas</button>
         )}
-        {/* Delete with confirmation */}
         {canDelete&&!confirmDel&&(
           <button onClick={()=>setConfirmDel(true)} style={{fontSize:11,padding:"4px 10px",background:"#FEE2E2",border:"1px solid #FECACA",borderRadius:6,cursor:"pointer",color:C.red}}>🗑</button>
         )}
@@ -445,25 +392,19 @@ function KanbanCard({card,clients,role,onMove,onApprove,onMetrics,onDelete,isDra
   );
 }
 
-// ── PIPELINE OVERVIEW ────────────────────────────────────────────────────────
+// ── PIPELINE OVERVIEW ─────────────────────────────────────────────────────────
 function PipelineOverview({clients,cards,videos,targets,role,onSelect,onSetTargets}){
   const month=curMonth();
-  const [showSetTargets,setShowSetTargets]=useState(false);
+  const[showSetTargets,setShowSetTargets]=useState(false);
   const activeClients=clients.filter(c=>c.status!=="archived");
-
   const publishedThisMonth=id=>videos.filter(v=>v.clientId===id&&v.publishDate?.startsWith(month)).length;
   const clientCards=id=>cards.filter(c=>c.clientId===id&&c.month===month);
-
   return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
-        <div>
-          <div style={{fontSize:22,fontWeight:800,color:C.text}}>🗂 Pipeline — {month}</div>
-          <div style={{fontSize:13,color:C.muted,marginTop:4}}>Selecciona un cliente para ver su tablero</div>
-        </div>
+        <div><div style={{fontSize:22,fontWeight:800,color:C.text}}>🗂 Pipeline — {month}</div><div style={{fontSize:13,color:C.muted,marginTop:4}}>Selecciona un cliente para ver su tablero</div></div>
         {role==="admin"&&<Btn onClick={()=>setShowSetTargets(true)}>🎯 Metas del mes</Btn>}
       </div>
-
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
         {activeClients.map(c=>{
           const target=targets[month]?.[c.id]||0;
@@ -487,21 +428,11 @@ function PipelineOverview({clients,cards,videos,targets,role,onSelect,onSetTarge
                 <div style={{fontSize:11,color:C.muted}}>{c.industry}</div>
               </div>
               <div style={{padding:"12px 18px"}}>
-                {target>0&&<>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
-                    <span style={{color:C.muted}}>Videos publicados</span>
-                    <span style={{fontWeight:700,color:statusColor}}>{published}/{target}</span>
-                  </div>
-                  <div style={{background:C.light,borderRadius:20,height:8,overflow:"hidden",marginBottom:12}}>
-                    <div style={{width:`${pct||0}%`,height:"100%",background:statusColor,borderRadius:20}}/>
-                  </div>
-                </>}
+                {target>0&&<><div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}><span style={{color:C.muted}}>Videos publicados</span><span style={{fontWeight:700,color:statusColor}}>{published}/{target}</span></div><div style={{background:C.light,borderRadius:20,height:8,overflow:"hidden",marginBottom:12}}><div style={{width:`${pct||0}%`,height:"100%",background:statusColor,borderRadius:20}}/></div></>}
                 {!target&&<div style={{fontSize:12,color:C.muted,marginBottom:12}}>Sin meta definida</div>}
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {STAGES.filter(s=>stageCount(s.id)>0).map(s=>(
-                    <span key={s.id} style={{fontSize:10,fontWeight:700,background:s.color+"18",color:s.color,padding:"2px 8px",borderRadius:20,border:`1px solid ${s.color}30`}}>
-                      {s.label.split(" ")[0]} {stageCount(s.id)}
-                    </span>
+                    <span key={s.id} style={{fontSize:10,fontWeight:700,background:s.color+"18",color:s.color,padding:"2px 8px",borderRadius:20,border:`1px solid ${s.color}30`}}>{s.label.split(" ")[0]} {stageCount(s.id)}</span>
                   ))}
                   {cCards.length===0&&published===0&&<span style={{fontSize:11,color:C.muted}}>Sin actividad</span>}
                 </div>
@@ -522,10 +453,9 @@ function PipelineOverview({clients,cards,videos,targets,role,onSelect,onSetTarge
 // ── PIPELINE BOARD ────────────────────────────────────────────────────────────
 function PipelineBoard({clientId,clients,employees,cards,videos,targets,role,onAddCard,onMoveCard,onMetrics,onDeleteCard,onBack}){
   const month=curMonth();
-  const [draggingId,setDraggingId]=useState(null);
-  const [showAddCard,setShowAddCard]=useState(false);
-  const [metricsCard,setMetricsCard]=useState(null);
-
+  const[draggingId,setDraggingId]=useState(null);
+  const[showAddCard,setShowAddCard]=useState(false);
+  const[metricsCard,setMetricsCard]=useState(null);
   const selClient=clients.find(c=>c.id===clientId);
   const monthCards=cards.filter(c=>c.clientId===clientId&&c.month===month);
   const published=videos.filter(v=>v.clientId===clientId&&v.publishDate?.startsWith(month)).length;
@@ -533,7 +463,6 @@ function PipelineBoard({clientId,clients,employees,cards,videos,targets,role,onA
   const pct=target>0?Math.min(100,Math.round(published/target*100)):null;
   const behind=target>0&&published<Math.floor(target*0.5);
   const cardsInStage=sid=>monthCards.filter(c=>c.stage===sid);
-
   const handleDrop=(e,stageId)=>{
     e.preventDefault();
     const cardId=e.dataTransfer.getData("cardId");
@@ -542,16 +471,11 @@ function PipelineBoard({clientId,clients,employees,cards,videos,targets,role,onA
     onMoveCard(cardId,stageId);
     setDraggingId(null);
   };
-
   return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          {role==="admin"&&(
-            <button onClick={onBack} style={{background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 12px",cursor:"pointer",fontSize:12,fontWeight:600,color:C.text}}>
-              ← Clientes
-            </button>
-          )}
+          {role==="admin"&&onBack&&(<button onClick={onBack} style={{background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 12px",cursor:"pointer",fontSize:12,fontWeight:600,color:C.text}}>← Clientes</button>)}
           <div>
             <div style={{fontSize:20,fontWeight:800,color:C.text}}>🗂 {selClient?.name} — {month}</div>
             <div style={{fontSize:12,color:C.muted,marginTop:2}}>{monthCards.length} en pipeline · {published} publicados{target>0?` · Meta: ${target}`:""}</div>
@@ -559,43 +483,29 @@ function PipelineBoard({clientId,clients,employees,cards,videos,targets,role,onA
         </div>
         <Btn primary onClick={()=>setShowAddCard(true)}>+ Nuevo video</Btn>
       </div>
-
       {target>0&&(
         <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:16}}>
           <div style={{flex:1}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
-              <span style={{color:C.muted}}>Progreso mensual</span>
-              <span style={{fontWeight:700,color:behind?C.red:pct===100?C.green:C.amber}}>{published}/{target} publicados</span>
-            </div>
-            <div style={{background:C.light,borderRadius:20,height:8,overflow:"hidden"}}>
-              <div style={{width:`${pct||0}%`,height:"100%",background:behind?C.red:pct===100?C.green:C.amber,borderRadius:20,transition:"width .3s"}}/>
-            </div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}><span style={{color:C.muted}}>Progreso mensual</span><span style={{fontWeight:700,color:behind?C.red:pct===100?C.green:C.amber}}>{published}/{target} publicados</span></div>
+            <div style={{background:C.light,borderRadius:20,height:8,overflow:"hidden"}}><div style={{width:`${pct||0}%`,height:"100%",background:behind?C.red:pct===100?C.green:C.amber,borderRadius:20,transition:"width .3s"}}/></div>
           </div>
-          <div style={{fontSize:12,fontWeight:700,color:behind?C.red:pct===100?C.green:C.amber,flexShrink:0}}>
-            {pct===100?"✅ Meta cumplida":behind?"⚠️ Por debajo":Math.max(0,target-published)+" restantes"}
-          </div>
+          <div style={{fontSize:12,fontWeight:700,color:behind?C.red:pct===100?C.green:C.amber,flexShrink:0}}>{pct===100?"✅ Meta cumplida":behind?"⚠️ Por debajo":Math.max(0,target-published)+" restantes"}</div>
         </div>
       )}
-
       <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
-        {STAGES.map(s=>{
-          const n=cardsInStage(s.id).length;
-          return(
-            <div key={s.id} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:20,background:n>=5?"#FEE2E2":n>=3?"#FEF9C3":C.light,border:`1px solid ${n>=5?"#FECACA":n>=3?"#FDE68A":C.border}`,flexShrink:0}}>
-              <span style={{fontSize:13}}>{s.label.split(" ")[0]}</span>
-              <span style={{fontSize:12,fontWeight:700,color:n>=5?C.red:n>=3?C.amber:C.muted}}>{n}</span>
-              <span style={{fontSize:11,color:C.muted}}>{s.label.split(" ").slice(1).join(" ")}</span>
-              {n>=5&&<span style={{fontSize:10,color:C.red,fontWeight:700}}>⚠️ cuello</span>}
-            </div>
-          );
-        })}
+        {STAGES.map(s=>{const n=cardsInStage(s.id).length;return(
+          <div key={s.id} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:20,background:n>=5?"#FEE2E2":n>=3?"#FEF9C3":C.light,border:`1px solid ${n>=5?"#FECACA":n>=3?"#FDE68A":C.border}`,flexShrink:0}}>
+            <span style={{fontSize:13}}>{s.label.split(" ")[0]}</span>
+            <span style={{fontSize:12,fontWeight:700,color:n>=5?C.red:n>=3?C.amber:C.muted}}>{n}</span>
+            <span style={{fontSize:11,color:C.muted}}>{s.label.split(" ").slice(1).join(" ")}</span>
+            {n>=5&&<span style={{fontSize:10,color:C.red,fontWeight:700}}>⚠️ cuello</span>}
+          </div>
+        );})}
       </div>
-
       <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:12}}>
         {STAGES.map(stage=>(
           <div key={stage.id}
-            onDragOver={e=>e.preventDefault()}
-            onDrop={e=>handleDrop(e,stage.id)}
+            onDragOver={e=>e.preventDefault()} onDrop={e=>handleDrop(e,stage.id)}
             onDragEnter={e=>e.currentTarget.style.background="#EFF6FF"}
             onDragLeave={e=>e.currentTarget.style.background=""}
             style={{flex:"0 0 220px",background:C.light,borderRadius:12,padding:12,border:`1px solid ${C.border}`,opacity:(stage.id==="publicado"&&role==="community")?0.6:1}}>
@@ -603,75 +513,97 @@ function PipelineBoard({clientId,clients,employees,cards,videos,targets,role,onA
               <div style={{fontSize:13,fontWeight:700,color:C.text}}>{stage.label}</div>
               <span style={{fontSize:11,fontWeight:700,background:stage.color+"22",color:stage.color,padding:"2px 8px",borderRadius:20}}>{cardsInStage(stage.id).length}</span>
             </div>
-            {stage.id==="publicado"&&role==="community"&&(
-              <div style={{fontSize:10,color:C.muted,marginBottom:8,padding:"6px 8px",background:"#F1F5F9",borderRadius:6}}>🔒 Solo admins</div>
-            )}
+            {stage.id==="publicado"&&role==="community"&&(<div style={{fontSize:10,color:C.muted,marginBottom:8,padding:"6px 8px",background:"#F1F5F9",borderRadius:6}}>🔒 Solo admins</div>)}
             {cardsInStage(stage.id).map(card=>(
               <KanbanCard key={card.id} card={card} clients={clients} role={role}
-                isDragging={draggingId===card.id}
-                onDragStart={setDraggingId} onDragEnd={()=>setDraggingId(null)}
-                onMove={onMoveCard} onApprove={id=>onMoveCard(id,"publicado",true)}
-                onMetrics={c=>setMetricsCard(c)} onDelete={onDeleteCard}/>
+                isDragging={draggingId===card.id} onDragStart={setDraggingId} onDragEnd={()=>setDraggingId(null)}
+                onMove={onMoveCard} onMetrics={c=>setMetricsCard(c)} onDelete={onDeleteCard}/>
             ))}
-            {cardsInStage(stage.id).length===0&&(
-              <div style={{textAlign:"center",padding:"24px 10px",color:C.muted,fontSize:12,border:`2px dashed ${C.border}`,borderRadius:8,background:C.bg}}>Arrastra aquí</div>
-            )}
+            {cardsInStage(stage.id).length===0&&(<div style={{textAlign:"center",padding:"24px 10px",color:C.muted,fontSize:12,border:`2px dashed ${C.border}`,borderRadius:8,background:C.bg}}>Arrastra aquí</div>)}
           </div>
         ))}
       </div>
-
-      {showAddCard&&<AddCardModal clients={clients} employees={employees} defaultClientId={clientId} role={role} onSave={card=>{onAddCard(card);setShowAddCard(false);}} onClose={()=>setShowAddCard(false)}/>}
-      {metricsCard&&<MetricsModal card={metricsCard} employees={employees} onSave={m=>{onMetrics(metricsCard,m);setMetricsCard(null);}} onClose={()=>setMetricsCard(null)}/>}
+      {showAddCard&&<AddCardModal clients={clients} employees={employees} defaultClientId={clientId} role={role} onSave={()=>setShowAddCard(false)} onClose={()=>setShowAddCard(false)}/>}
+      {metricsCard&&<MetricsModal card={metricsCard} onSave={()=>{setMetricsCard(null);}} onClose={()=>setMetricsCard(null)}/>}
     </div>
   );
 }
 
-// ── PIPELINE PAGE (router) ────────────────────────────────────────────────────
-function PipelinePage({clients,employees,cards,videos,targets,role,onAddCard,onMoveCard,onMetrics,onDeleteCard,onSetTargets,communityClientId}){
-  const [selectedClient,setSelectedClient]=useState(communityClientId||null);
-
-  if(!selectedClient){
-    return <PipelineOverview clients={clients} cards={cards} videos={videos} targets={targets} role={role} onSelect={setSelectedClient} onSetTargets={onSetTargets}/>;
-  }
-  return <PipelineBoard clientId={selectedClient} clients={clients} employees={employees} cards={cards} videos={videos} targets={targets} role={role} onAddCard={onAddCard} onMoveCard={onMoveCard} onMetrics={onMetrics} onDeleteCard={onDeleteCard} onBack={communityClientId?null:()=>setSelectedClient(null)}/>;
+// ── PIPELINE PAGE ─────────────────────────────────────────────────────────────
+function PipelinePage({clients,employees,cards,videos,targets,role,onSetTargets,onMoveCard,onDeleteCard,communityClientId}){
+  const[selectedClient,setSelectedClient]=useState(communityClientId||null);
+  if(!selectedClient)return <PipelineOverview clients={clients} cards={cards} videos={videos} targets={targets} role={role} onSelect={setSelectedClient} onSetTargets={onSetTargets}/>;
+  return <PipelineBoard clientId={selectedClient} clients={clients} employees={employees} cards={cards} videos={videos} targets={targets} role={role} onAddCard={()=>{}} onMoveCard={onMoveCard} onMetrics={()=>{}} onDeleteCard={onDeleteCard} onBack={communityClientId?null:()=>setSelectedClient(null)}/>;
 }
 
 // ── SETTINGS PAGE ─────────────────────────────────────────────────────────────
-function SettingsPage({clients,employees,setClients,setEmployees}){
+function SettingsPage({clients,employees,setClients,setEmployees,userRole}){
   const[tab,setTab]=useState("clients");
   const[confirmDelete,setConfirmDelete]=useState(null);
   const[editItem,setEditItem]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
+  const[newUser,setNewUser]=useState({name:"",email:"",password:"",role:"community",clientId:""});
+  const[userMsg,setUserMsg]=useState("");
+
   const blankC={name:"",industry:"Retail",status:"active",am:"",goal:""};
-  const[cf,setCf]=useState(blankC);
-  const setC=(k,v)=>setCf(p=>({...p,[k]:v}));
-  const saveClient=()=>{
+  const[cf,setCf]=useState(blankC);const setC=(k,v)=>setCf(p=>({...p,[k]:v}));
+
+  const saveClient=async()=>{
     if(!cf.name.trim())return;
-    if(editItem?.type==="client")setClients(prev=>prev.map(c=>c.id===editItem.data.id?{...c,...cf}:c));
-    else setClients(prev=>[...prev,{...cf,id:uid()}]);
+    if(editItem?.type==="client"){
+      await supabase.from("clients").update(cf).eq("id",editItem.data.id);
+    }else{
+      const id=uid();
+      await supabase.from("clients").insert({...cf,id});
+    }
     setCf(blankC);setEditItem(null);setShowAdd(false);
   };
   const startEditC=c=>{setCf({name:c.name,industry:c.industry,status:c.status,am:c.am,goal:c.goal});setEditItem({type:"client",data:c});setShowAdd(true);};
+  const archiveClient=async id=>await supabase.from("clients").update({status:"archived"}).eq("id",id);
+  const deleteClient=async id=>{await supabase.from("clients").delete().eq("id",id);setConfirmDelete(null);};
+
   const blankE={name:"",role:"Editor",status:"active"};
-  const[ef,setEf]=useState(blankE);
-  const setE=(k,v)=>setEf(p=>({...p,[k]:v}));
-  const saveEmp=()=>{
+  const[ef,setEf]=useState(blankE);const setE=(k,v)=>setEf(p=>({...p,[k]:v}));
+
+  const saveEmp=async()=>{
     if(!ef.name.trim())return;
-    if(editItem?.type==="emp")setEmployees(prev=>prev.map(e=>e.id===editItem.data.id?{...e,...ef}:e));
-    else setEmployees(prev=>[...prev,{...ef,id:uid()}]);
+    if(editItem?.type==="emp"){
+      await supabase.from("employees").update(ef).eq("id",editItem.data.id);
+    }else{
+      await supabase.from("employees").insert({...ef,id:uid()});
+    }
     setEf(blankE);setEditItem(null);setShowAdd(false);
   };
   const startEditE=e=>{setEf({name:e.name,role:e.role,status:e.status});setEditItem({type:"emp",data:e});setShowAdd(true);};
+  const archiveEmp=async id=>await supabase.from("employees").update({status:"archived"}).eq("id",id);
+  const deleteEmp=async id=>{await supabase.from("employees").delete().eq("id",id);setConfirmDelete(null);};
+
   const cancel=()=>{setCf(blankC);setEf(blankE);setEditItem(null);setShowAdd(false);};
+
+  const createUser=async()=>{
+    if(!newUser.email||!newUser.password||!newUser.name){setUserMsg("⚠️ Completa todos los campos");return;}
+    setUserMsg("Creando cuenta...");
+    const{data,error}=await supabase.auth.signUp({email:newUser.email,password:newUser.password});
+    if(error){setUserMsg("❌ "+error.message);return;}
+    if(data.user){
+      await supabase.from("profiles").insert({id:data.user.id,name:newUser.name,role:newUser.role,client_id:newUser.clientId||null});
+    }
+    setUserMsg("✅ Cuenta creada para "+newUser.email);
+    setNewUser({name:"",email:"",password:"",role:"community",clientId:""});
+  };
+
   const sBadge=s=>({active:{bg:"#DCFCE7",color:"#15803D",label:"Activo"},pending:{bg:"#FEF9C3",color:"#92400E",label:"Pendiente"},archived:{bg:C.light,color:C.muted,label:"Archivado"}}[s]||{bg:C.light,color:C.muted,label:s});
   const tabS=active=>({padding:"8px 20px",border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:active?C.surface:"transparent",color:active?C.text:C.muted,borderBottom:active?`2px solid ${C.text}`:"2px solid transparent"});
+
+  const tabs=[{id:"clients",label:"🏢 Clientes"},{id:"team",label:"👥 Equipo"}];
+  if(userRole==="admin")tabs.push({id:"users",label:"🔑 Usuarios"});
+
   return(
     <div>
       <div style={{marginBottom:24}}><div style={{fontSize:22,fontWeight:800,color:C.text}}>⚙️ Configuración</div></div>
-      <div style={{display:"flex",borderBottom:`1px solid ${C.border}`,marginBottom:24}}>
-        <button style={tabS(tab==="clients")} onClick={()=>{setTab("clients");cancel();}}>🏢 Clientes</button>
-        <button style={tabS(tab==="team")}    onClick={()=>{setTab("team");cancel();}}>👥 Equipo</button>
-      </div>
+      <div style={{display:"flex",borderBottom:`1px solid ${C.border}`,marginBottom:24}}>{tabs.map(t=><button key={t.id} style={tabS(tab===t.id)} onClick={()=>{setTab(t.id);cancel();}}>{t.label}</button>)}</div>
+
+      {/* CLIENTS */}
       {tab==="clients"&&(
         <div>
           {!showAdd&&<div style={{marginBottom:16}}><Btn primary onClick={()=>setShowAdd(true)}>+ Agregar cliente</Btn></div>}
@@ -684,12 +616,8 @@ function SettingsPage({clients,employees,setClients,setEmployees}){
                 ))}
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:12}}>
-                <div><div style={{fontSize:11,color:C.muted,marginBottom:4}}>Industria</div>
-                  <select value={cf.industry} onChange={x=>setC("industry",x.target.value)} style={inp}>{INDUSTRIES.map(i=><option key={i}>{i}</option>)}</select>
-                </div>
-                <div><div style={{fontSize:11,color:C.muted,marginBottom:4}}>Estado</div>
-                  <select value={cf.status} onChange={x=>setC("status",x.target.value)} style={inp}><option value="active">Activo</option><option value="pending">Pendiente</option></select>
-                </div>
+                <div><div style={{fontSize:11,color:C.muted,marginBottom:4}}>Industria</div><select value={cf.industry} onChange={x=>setC("industry",x.target.value)} style={inp}>{INDUSTRIES.map(i=><option key={i}>{i}</option>)}</select></div>
+                <div><div style={{fontSize:11,color:C.muted,marginBottom:4}}>Estado</div><select value={cf.status} onChange={x=>setC("status",x.target.value)} style={inp}><option value="active">Activo</option><option value="pending">Pendiente</option></select></div>
               </div>
               <div style={{marginTop:12}}><div style={{fontSize:11,color:C.muted,marginBottom:4}}>Objetivo</div><input value={cf.goal} onChange={x=>setC("goal",x.target.value)} style={inp}/></div>
               <div style={{display:"flex",gap:10,marginTop:16}}><Btn primary onClick={saveClient}>Guardar ✓</Btn><Btn onClick={cancel}>Cancelar</Btn></div>
@@ -698,30 +626,25 @@ function SettingsPage({clients,employees,setClients,setEmployees}){
           <Card pad={0}>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead><tr>{["Cliente","Industria","AM","Estado","Acciones"].map(h=><th key={h} style={{textAlign:"left",padding:"12px 16px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:700,borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
-              <tbody>{clients.map(c=>{
-                const s=sBadge(c.status);const isCf=confirmDelete===c.id;
-                return(<tr key={c.id}>
+              <tbody>{clients.map(c=>{const s=sBadge(c.status);const isCf=confirmDelete===c.id;return(
+                <tr key={c.id}>
                   <td style={{padding:"13px 16px",borderBottom:`1px solid ${C.border}`}}><div style={{fontSize:13,fontWeight:600,color:C.text}}>{c.name}</div><div style={{fontSize:11,color:C.muted}}>{c.goal}</div></td>
                   <td style={{padding:"13px 16px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{c.industry}</td>
                   <td style={{padding:"13px 16px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`}}>{c.am||"—"}</td>
                   <td style={{padding:"13px 16px",borderBottom:`1px solid ${C.border}`}}><span style={{background:s.bg,color:s.color,fontSize:11,fontWeight:600,padding:"3px 8px",borderRadius:20}}>{s.label}</span></td>
                   <td style={{padding:"13px 16px",borderBottom:`1px solid ${C.border}`}}>
-                    {isCf
-                      ?<div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:12,color:C.red,fontWeight:600}}>⚠️ ¿Eliminar?</span><Btn danger small onClick={()=>{setClients(prev=>prev.filter(x=>x.id!==c.id));setConfirmDelete(null);}}>Sí</Btn><Btn small onClick={()=>setConfirmDelete(null)}>No</Btn></div>
-                      :<div style={{display:"flex",gap:6}}>
-                        {c.status!=="archived"&&<Btn small onClick={()=>startEditC(c)}>✏️</Btn>}
-                        {c.status==="active"&&<Btn small onClick={()=>setClients(prev=>prev.map(x=>x.id===c.id?{...x,status:"archived"}:x))}>📦</Btn>}
-                        <Btn small danger onClick={()=>setConfirmDelete(c.id)}>🗑️</Btn>
-                      </div>
-                    }
+                    {isCf?<div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:12,color:C.red,fontWeight:600}}>⚠️ ¿Eliminar?</span><Btn danger small onClick={()=>deleteClient(c.id)}>Sí</Btn><Btn small onClick={()=>setConfirmDelete(null)}>No</Btn></div>
+                    :<div style={{display:"flex",gap:6}}>{c.status!=="archived"&&<Btn small onClick={()=>startEditC(c)}>✏️</Btn>}{c.status==="active"&&<Btn small onClick={()=>archiveClient(c.id)}>📦</Btn>}<Btn small danger onClick={()=>setConfirmDelete(c.id)}>🗑️</Btn></div>}
                   </td>
-                </tr>);
-              })}</tbody>
+                </tr>
+              );})}
+              </tbody>
             </table>
           </Card>
-          <div style={{marginTop:12,fontSize:12,color:C.muted}}>💡 Archivar conserva el historial. Eliminar es permanente.</div>
         </div>
       )}
+
+      {/* TEAM */}
       {tab==="team"&&(
         <div>
           {!showAdd&&<div style={{marginBottom:16}}><Btn primary onClick={()=>setShowAdd(true)}>+ Agregar miembro</Btn></div>}
@@ -737,50 +660,68 @@ function SettingsPage({clients,employees,setClients,setEmployees}){
           )}
           {EMP_ROLES.filter(r=>employees.some(e=>e.role===r)).map(role=>(
             <div key={role} style={{marginBottom:20}}>
-              <div style={{fontSize:12,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:10,textTransform:"uppercase"}}>
-                {role==="Editor"?"✂️":role==="Community Manager"?"📱":role==="Productor"?"🎥":"👤"} {role}
-              </div>
+              <div style={{fontSize:12,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:10,textTransform:"uppercase"}}>{role==="Editor"?"✂️":role==="Community Manager"?"📱":role==="Productor"?"🎥":"👤"} {role}</div>
               <Card pad={0}>
                 <table style={{width:"100%",borderCollapse:"collapse"}}>
                   <thead><tr>{["Nombre","Estado","Acciones"].map(h=><th key={h} style={{textAlign:"left",padding:"10px 16px",fontSize:10,color:C.muted,letterSpacing:1,fontWeight:700,borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
-                  <tbody>{employees.filter(e=>e.role===role).map(e=>{
-                    const isCf=confirmDelete===e.id;
-                    return(<tr key={e.id}>
+                  <tbody>{employees.filter(e=>e.role===role).map(e=>{const isCf=confirmDelete===e.id;return(
+                    <tr key={e.id}>
                       <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`,fontSize:13,fontWeight:600,color:e.status==="archived"?C.muted:C.text}}>{e.name}</td>
                       <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`}}><span style={{background:e.status==="active"?"#DCFCE7":C.light,color:e.status==="active"?"#15803D":C.muted,fontSize:11,fontWeight:600,padding:"3px 8px",borderRadius:20}}>{e.status==="active"?"Activo":"Archivado"}</span></td>
                       <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`}}>
-                        {isCf
-                          ?<div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:12,color:C.red,fontWeight:600}}>⚠️ ¿Eliminar?</span><Btn danger small onClick={()=>{setEmployees(prev=>prev.filter(x=>x.id!==e.id));setConfirmDelete(null);}}>Sí</Btn><Btn small onClick={()=>setConfirmDelete(null)}>No</Btn></div>
-                          :<div style={{display:"flex",gap:6}}>
-                            <Btn small onClick={()=>startEditE(e)}>✏️</Btn>
-                            {e.status==="active"&&<Btn small onClick={()=>setEmployees(prev=>prev.map(x=>x.id===e.id?{...x,status:"archived"}:x))}>📦</Btn>}
-                            <Btn small danger onClick={()=>setConfirmDelete(e.id)}>🗑️</Btn>
-                          </div>
-                        }
+                        {isCf?<div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:12,color:C.red,fontWeight:600}}>⚠️ ¿Eliminar?</span><Btn danger small onClick={()=>deleteEmp(e.id)}>Sí</Btn><Btn small onClick={()=>setConfirmDelete(null)}>No</Btn></div>
+                        :<div style={{display:"flex",gap:6}}><Btn small onClick={()=>startEditE(e)}>✏️</Btn>{e.status==="active"&&<Btn small onClick={()=>archiveEmp(e.id)}>📦</Btn>}<Btn small danger onClick={()=>setConfirmDelete(e.id)}>🗑️</Btn></div>}
                       </td>
-                    </tr>);
-                  })}</tbody>
+                    </tr>
+                  );})}
+                  </tbody>
                 </table>
               </Card>
             </div>
           ))}
-          {employees.some(e=>e.status==="archived")&&(
-            <div style={{marginTop:16}}>
-              <div style={{fontSize:12,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:10}}>📦 ARCHIVADOS</div>
-              <Card pad={0}>
-                <table style={{width:"100%",borderCollapse:"collapse"}}>
-                  <tbody>{employees.filter(e=>e.status==="archived").map(e=>(
-                    <tr key={e.id}>
-                      <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.muted}}>{e.name}</td>
-                      <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`,fontSize:12,color:C.muted}}>{e.role}</td>
-                      <td style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`}}><Btn small onClick={()=>setEmployees(prev=>prev.map(x=>x.id===e.id?{...x,status:"active"}:x))}>↩️ Reactivar</Btn></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </Card>
+        </div>
+      )}
+
+      {/* USERS */}
+      {tab==="users"&&userRole==="admin"&&(
+        <div>
+          <Card style={{marginBottom:24,borderLeft:`4px solid ${C.accent}`}}>
+            <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:16}}>➕ Crear cuenta de equipo</div>
+            <div style={{padding:12,background:"#FFF7ED",borderRadius:8,border:"1px solid #FED7AA",marginBottom:16,fontSize:12,color:"#92400E"}}>
+              ⚠️ Antes de crear cuentas, ve a Supabase → Authentication → Settings y desactiva "Enable email confirmations". Si no, el usuario recibirá un email de confirmación antes de poder entrar.
             </div>
-          )}
-          <div style={{marginTop:12,fontSize:12,color:C.muted}}>💡 🎭 El campo Creador/Talent en los videos es texto libre — el talent es externo y cambia constantemente.</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {[["Nombre completo","name","text"],["Email","email","email"],["Contraseña temporal","password","password"]].map(([l,k,t])=>(
+                <div key={k} style={{gridColumn:k==="name"?"1/-1":"auto"}}>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
+                  <input type={t} value={newUser[k]} onChange={x=>setNewUser(p=>({...p,[k]:x.target.value}))} style={inp}/>
+                </div>
+              ))}
+              <div>
+                <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Rol</div>
+                <select value={newUser.role} onChange={x=>setNewUser(p=>({...p,role:x.target.value}))} style={inp}>
+                  <option value="admin">Admin</option>
+                  <option value="community">Community</option>
+                </select>
+              </div>
+              {newUser.role==="community"&&(
+                <div>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Cliente asignado</div>
+                  <select value={newUser.clientId} onChange={x=>setNewUser(p=>({...p,clientId:x.target.value}))} style={inp}>
+                    <option value="">Sin asignar</option>
+                    {clients.filter(c=>c.status!=="archived").map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div style={{display:"flex",gap:10,alignItems:"center",marginTop:16}}>
+              <Btn primary onClick={createUser}>Crear cuenta ✓</Btn>
+              {userMsg&&<span style={{fontSize:12,color:userMsg.startsWith("✅")?C.green:userMsg.startsWith("❌")?C.red:C.muted}}>{userMsg}</span>}
+            </div>
+          </Card>
+          <div style={{fontSize:12,color:C.muted}}>
+            💡 Las cuentas creadas aquí permiten a cada miembro del equipo entrar con su propio email y contraseña desde cualquier dispositivo. Los admins ven todo. Los community managers solo ven su cliente asignado.
+          </div>
         </div>
       )}
     </div>
@@ -796,10 +737,10 @@ function Dashboard({clients,videos,onClient}){
     <div>
       <div style={{marginBottom:24}}><div style={{fontSize:22,fontWeight:800,color:C.text}}>📊 Agency Dashboard</div><div style={{fontSize:13,color:C.muted,marginTop:4}}>{videos.length} videos en el período seleccionado</div></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:24}}>
-        <Kpi emoji="👁" v={fmt(totV(videos))}  l="Vistas totales"/>
-        <Kpi emoji="🎬" v={videos.length}       l="Videos publicados"/>
-        <Kpi emoji="💹" v={avgE(videos)}         l="Engagement promedio" color={C.accent}/>
-        <Kpi emoji="📡" v={avgParaTi(videos)}    l="% Para Ti promedio"  color={C.green}/>
+        <Kpi emoji="👁" v={fmt(totV(videos))} l="Vistas totales"/>
+        <Kpi emoji="🎬" v={videos.length} l="Videos publicados"/>
+        <Kpi emoji="💹" v={avgE(videos)} l="Engagement promedio" color={C.accent}/>
+        <Kpi emoji="📡" v={avgParaTi(videos)} l="% Para Ti promedio" color={C.green}/>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1.3fr 1fr",gap:16}}>
         <Card>
@@ -825,10 +766,7 @@ function Dashboard({clients,videos,onClient}){
             <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{clName(top.clientId)} · {top.publishDate}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
               {[[fmt(top.views),"👁 Vistas"],[eng(top),"💹 Eng."],[`${top.paraTi??'—'}%`,"📡 Para Ti"]].map(([v,l])=>(
-                <div key={l} style={{background:C.light,borderRadius:8,padding:10,textAlign:"center"}}>
-                  <div style={{fontSize:16,fontWeight:800,color:C.text}}>{v}</div>
-                  <div style={{fontSize:9,color:C.muted,marginTop:2}}>{l}</div>
-                </div>
+                <div key={l} style={{background:C.light,borderRadius:8,padding:10,textAlign:"center"}}><div style={{fontSize:16,fontWeight:800,color:C.text}}>{v}</div><div style={{fontSize:9,color:C.muted,marginTop:2}}>{l}</div></div>
               ))}
             </div>
             <Tag>{top.hook}</Tag><Tag color={C.accent}>{top.format}</Tag>
@@ -888,10 +826,7 @@ function CreativePage({videos}){
           <SecTitle>📡 Fuentes de tráfico (promedio)</SecTitle>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
             {[["📱 Para Ti",avgP,C.green],["👥 Siguiendo",avgS,C.accent],["🔍 Búsqueda",avgB,C.gold]].map(([l,v,color])=>(
-              <div key={l} style={{textAlign:"center",background:C.light,borderRadius:10,padding:14}}>
-                <div style={{fontSize:26,fontWeight:800,color}}>{v}%</div>
-                <div style={{fontSize:10,color:C.muted,marginTop:4}}>{l}</div>
-              </div>
+              <div key={l} style={{textAlign:"center",background:C.light,borderRadius:10,padding:14}}><div style={{fontSize:26,fontWeight:800,color}}>{v}%</div><div style={{fontSize:10,color:C.muted,marginTop:4}}>{l}</div></div>
             ))}
           </div>
           <SecTitle>🔥 Videos más algorítmicos</SecTitle>
@@ -917,12 +852,7 @@ function CreativePage({videos}){
             <div style={{fontSize:12,color:"#7C2D12",lineHeight:1.5}}>La pauta amplifica, no crea. El hook decide el techo. Optimiza el contenido primero, amplifica después.</div>
           </div>
           <SecTitle>🎯 CTAs por avg vistas</SecTitle>
-          {cd.slice(0,5).map(c=>(
-            <div key={c.name} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}`}}>
-              <span style={{fontSize:12,color:C.text}}>{c.name}</span>
-              <span style={{fontSize:12,fontWeight:700,color:C.gold}}>{fmt(c.avg)} avg</span>
-            </div>
-          ))}
+          {cd.slice(0,5).map(c=>(<div key={c.name} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}`}}><span style={{fontSize:12,color:C.text}}>{c.name}</span><span style={{fontSize:12,fontWeight:700,color:C.gold}}>{fmt(c.avg)} avg</span></div>))}
         </Card>
       </div>
     </div>
@@ -943,7 +873,8 @@ function TeamPage({videos}){
         ))}
       </div>
     </Card>
-  ):(<Card><div style={{textAlign:"center",padding:20,color:C.muted,fontSize:12}}>Sin datos en este período</div></Card>);
+  ):(<Card><div style={{textAlign:"center",padding:20,color:C.muted,fontSize:12}}>Sin datos</div></Card>);
+
   const RankTable=({title,emoji,people})=>(
     <Card>
       <SecTitle>{emoji} {title}</SecTitle>
@@ -963,19 +894,20 @@ function TeamPage({videos}){
       </table>}
     </Card>
   );
+
   return(
     <div>
-      <div style={{marginBottom:24}}><div style={{fontSize:22,fontWeight:800,color:C.text}}>👥 Equipo</div><div style={{fontSize:13,color:C.muted,marginTop:4}}>Rendimiento basado en el mejor video del período — calidad sobre cantidad</div></div>
+      <div style={{marginBottom:24}}><div style={{fontSize:22,fontWeight:800,color:C.text}}>👥 Equipo</div><div style={{fontSize:13,color:C.muted,marginTop:4}}>Rendimiento basado en el mejor video — calidad sobre cantidad</div></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:24}}>
-        <HeroCard emoji="✂️" role="Editor"            person={editors[0]}/>
+        <HeroCard emoji="✂️" role="Editor" person={editors[0]}/>
         <HeroCard emoji="📱" role="Community Manager" person={cms[0]}/>
-        <HeroCard emoji="🎥" role="Productor"         person={producers[0]}/>
-        <HeroCard emoji="🎭" role="Creador"           person={creators[0]}/>
+        <HeroCard emoji="🎥" role="Productor" person={producers[0]}/>
+        <HeroCard emoji="🎭" role="Creador" person={creators[0]}/>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
-        <RankTable title="Editores"             emoji="✂️" people={editors}/>
-        <RankTable title="Community Managers"   emoji="📱" people={cms}/>
-        <RankTable title="Productores"          emoji="🎥" people={producers}/>
+        <RankTable title="Editores" emoji="✂️" people={editors}/>
+        <RankTable title="Community Managers" emoji="📱" people={cms}/>
+        <RankTable title="Productores" emoji="🎥" people={producers}/>
         {creators.length>0&&<RankTable title="Talent (externo)" emoji="🎭" people={creators}/>}
       </div>
     </div>
@@ -995,10 +927,10 @@ function ClientPage({client,videos,onAdd}){
         <Btn onClick={onAdd} primary>+ Agregar video</Btn>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-        <Kpi emoji="🎬" v={vs.length}          l="Videos"/>
-        <Kpi emoji="👁" v={fmt(totV(vs))}       l="Vistas"/>
-        <Kpi emoji="💹" v={avgE(vs)}            l="Engagement" color={C.accent}/>
-        <Kpi emoji="📡" v={avgParaTi(vs)}       l="% Para Ti"  color={C.green}/>
+        <Kpi emoji="🎬" v={vs.length} l="Videos"/>
+        <Kpi emoji="👁" v={fmt(totV(vs))} l="Vistas"/>
+        <Kpi emoji="💹" v={avgE(vs)} l="Engagement" color={C.accent}/>
+        <Kpi emoji="📡" v={avgParaTi(vs)} l="% Para Ti" color={C.green}/>
       </div>
       {vs.length===0?<Card style={{textAlign:"center",padding:48}}><div style={{fontSize:40,marginBottom:12}}>📹</div><div style={{fontSize:15,fontWeight:700,color:C.text}}>Sin videos aún</div></Card>
       :<>
@@ -1013,22 +945,8 @@ function ClientPage({client,videos,onAdd}){
             </ResponsiveContainer>
           </Card>)}
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            {top&&(<Card style={{borderLeft:`4px solid ${C.green}`}}>
-              <SecTitle>🏆 Mejor video</SecTitle>
-              <div style={{fontSize:14,fontWeight:800,color:C.text,marginBottom:8,lineHeight:1.3}}>{top.title}</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-                {[[fmt(top.views),"Vistas"],[eng(top),"Engagement"],[`${top.paraTi??'—'}%`,"Para Ti"],[roiStr(top),"ROI"]].map(([v,l])=>(
-                  <div key={l} style={{background:C.light,borderRadius:8,padding:8,textAlign:"center"}}><div style={{fontSize:14,fontWeight:800,color:C.text}}>{v}</div><div style={{fontSize:9,color:C.muted}}>{l}</div></div>
-                ))}
-              </div>
-              <Tag>{top.hook}</Tag><Tag color={C.accent}>{top.format}</Tag>
-            </Card>)}
-            {bot&&bot.id!==top?.id&&(<Card style={{borderLeft:`4px solid ${C.red}`}}>
-              <SecTitle>⚠️ Peor video</SecTitle>
-              <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:6}}>{bot.title}</div>
-              <div style={{fontSize:13,color:C.gold,fontWeight:700}}>{fmt(bot.views)} vistas</div>
-              <div style={{marginTop:6}}><Tag color={C.red}>{bot.hook}</Tag></div>
-            </Card>)}
+            {top&&(<Card style={{borderLeft:`4px solid ${C.green}`}}><SecTitle>🏆 Mejor video</SecTitle><div style={{fontSize:14,fontWeight:800,color:C.text,marginBottom:8,lineHeight:1.3}}>{top.title}</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>{[[fmt(top.views),"Vistas"],[eng(top),"Engagement"],[`${top.paraTi??'—'}%`,"Para Ti"],[roiStr(top),"ROI"]].map(([v,l])=>(<div key={l} style={{background:C.light,borderRadius:8,padding:8,textAlign:"center"}}><div style={{fontSize:14,fontWeight:800,color:C.text}}>{v}</div><div style={{fontSize:9,color:C.muted}}>{l}</div></div>))}</div><Tag>{top.hook}</Tag><Tag color={C.accent}>{top.format}</Tag></Card>)}
+            {bot&&bot.id!==top?.id&&(<Card style={{borderLeft:`4px solid ${C.red}`}}><SecTitle>⚠️ Peor video</SecTitle><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:6}}>{bot.title}</div><div style={{fontSize:13,color:C.gold,fontWeight:700}}>{fmt(bot.views)} vistas</div><div style={{marginTop:6}}><Tag color={C.red}>{bot.hook}</Tag></div></Card>)}
           </div>
         </div>
         <Card>
@@ -1059,16 +977,18 @@ function ClientPage({client,videos,onAdd}){
   );
 }
 
-// ── ADD VIDEO MODAL (admin direct entry) ──────────────────────────────────────
+// ── ADD VIDEO MODAL ───────────────────────────────────────────────────────────
 function AddModal({clients,employees,defaultClientId,onSave,onClose}){
   const activeClients=clients.filter(c=>c.status!=="archived");
   const activeEmps=employees.filter(e=>e.status==="active");
   const blank={clientId:defaultClientId||"",title:"",platform:"TikTok",publishDate:new Date().toISOString().slice(0,10),creator:"",editor:"",cm:"",producer:"",hook:"",format:"",cta:"",trigger:"",pillar:"",pauta:"0",views:"0",likes:"0",comments:"0",shares:"0",saves:"0",duration:"0",watchTimeAvg:"0",followers:"0",paraTi:"",siguiendo:"",busqueda:""};
   const[f,sf]=useState(blank);const set=(k,v)=>sf(p=>({...p,[k]:v}));
-  const save=()=>{
+  const save=async()=>{
     if(!f.clientId||!f.title)return;
     const nums=["pauta","views","likes","comments","shares","saves","duration","watchTimeAvg","followers","paraTi","siguiendo","busqueda"];
-    onSave({...f,id:"v"+Date.now(),...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})});onClose();
+    const vid={...f,id:"v"+Date.now(),...nums.reduce((o,k)=>({...o,[k]:f[k]!==""?+f[k]:null}),{})};
+    await supabase.from("videos").insert(videoToDB(vid));
+    onSave();onClose();
   };
   const g2={display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
   const fld=(l,k,t="text",opts)=>(
@@ -1077,8 +997,7 @@ function AddModal({clients,employees,defaultClientId,onSave,onClose}){
            :<input type={t} value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}/>}
     </div>
   );
-  const empSel=(l,k)=>(<div style={{marginBottom:12}}><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div>
-    <select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}><option value="">Sin asignar</option>{activeEmps.map(e=><option key={e.id} value={e.name}>{e.name} ({e.role})</option>)}</select></div>);
+  const empSel=(l,k)=>(<div style={{marginBottom:12}}><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{l}</div><select value={f[k]} onChange={x=>set(k,x.target.value)} style={inp}><option value="">Sin asignar</option>{activeEmps.map(e=><option key={e.id} value={e.name}>{e.name} ({e.role})</option>)}</select></div>);
   const sec=(e,l)=><div style={{fontSize:11,fontWeight:700,color:C.accent,letterSpacing:1,margin:"14px 0 10px"}}>{e} {l}</div>;
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:999,paddingTop:24,paddingBottom:24,overflowY:"auto"}}>
@@ -1089,12 +1008,7 @@ function AddModal({clients,employees,defaultClientId,onSave,onClose}){
         </div>
         <div style={{padding:"14px 26px 26px"}}>
           {sec("📌","INFO GENERAL")}
-          <div style={g2}>
-            <div style={{marginBottom:12}}><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Cliente</div>
-              <select value={f.clientId} onChange={x=>set("clientId",x.target.value)} style={inp}><option value="">Seleccionar...</option>{activeClients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
-            </div>
-            {fld("Plataforma","platform","text",PLATFORMS)}
-          </div>
+          <div style={g2}><div style={{marginBottom:12}}><div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>Cliente</div><select value={f.clientId} onChange={x=>set("clientId",x.target.value)} style={inp}><option value="">Seleccionar...</option>{activeClients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>{fld("Plataforma","platform","text",PLATFORMS)}</div>
           {fld("Título del video","title")}
           <div style={g2}>{fld("Fecha","publishDate","date")}{fld("Duración (seg)","duration","number")}</div>
           <div style={g2}>{fld("🎭 Creador / Talent","creator")}{empSel("✂️ Editor","editor")}</div>
@@ -1110,9 +1024,7 @@ function AddModal({clients,employees,defaultClientId,onSave,onClose}){
           <div style={g2}>{fld("🔖 Guardados","saves","number")}{fld("👤 Seguidores ganados","followers","number")}</div>
           {fld("⏱ Tiempo viz. promedio (seg)","watchTimeAvg","number")}
           {sec("📡","FUENTES DE TRÁFICO")}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-            {fld("📱 % Para Ti","paraTi","number")}{fld("👥 % Siguiendo","siguiendo","number")}{fld("🔍 % Búsqueda","busqueda","number")}
-          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>{fld("📱 % Para Ti","paraTi","number")}{fld("👥 % Siguiendo","siguiendo","number")}{fld("🔍 % Búsqueda","busqueda","number")}</div>
           <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}><Btn onClick={onClose}>Cancelar</Btn><Btn onClick={save} primary>Guardar ✓</Btn></div>
         </div>
       </div>
@@ -1120,137 +1032,137 @@ function AddModal({clients,employees,defaultClientId,onSave,onClose}){
   );
 }
 
-// ── MAIN ──────────────────────────────────────────────────────────────────────
+// ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App(){
-  const[role,     setRole]    =useState(()=>store.get("tch_role")||null);
-  const[clients,  setClients] =useState(()=>store.get("tch_clients_v3")||SEED_CLIENTS);
-  const[employees,setEmps]    =useState(()=>store.get("tch_emps_v1")||SEED_EMPLOYEES);
-  const[videos,   setVideos]  =useState(()=>store.get("tch_videos_v3")||SEED_VIDEOS);
-  const[cards,    setCards]   =useState(()=>store.get("tch_cards_v1")||[]);
-  const[targets,  setTargets] =useState(()=>store.get("tch_targets_v1")||{});
-  const[page,     setPage]    =useState("dashboard");
-  const[modal,    setModal]   =useState(null);
-  const[range,    setRange]   =useState("all");
-  const[comClient,setComClient]=useState(null);
+  const[user,   setUser]   =useState(null);
+  const[profile,setProfile]=useState(null);
+  const[clients, setClients]=useState([]);
+  const[employees,setEmps] =useState([]);
+  const[videos,  setVideos]=useState([]);
+  const[cards,   setCards] =useState([]);
+  const[targets, setTargets]=useState({});
+  const[loading, setLoading]=useState(true);
+  const[page,    setPage]  =useState("dashboard");
+  const[modal,   setModal] =useState(null);
+  const[range,   setRange] =useState("all");
 
-  useEffect(()=>{store.set("tch_clients_v3",clients);},[clients]);
-  useEffect(()=>{store.set("tch_emps_v1",employees);},[employees]);
-  useEffect(()=>{store.set("tch_videos_v3",videos);},[videos]);
-  useEffect(()=>{store.set("tch_cards_v1",cards);},[cards]);
-  useEffect(()=>{store.set("tch_targets_v1",targets);},[targets]);
-  useEffect(()=>{store.set("tch_role",role);},[role]);
-  // Cross-tab sync via storage event (same browser, different tabs)
+  // ── Check existing session ──────────────────────────────────────────────────
   useEffect(()=>{
-    const h=(e)=>{
-      if(e.key==="tch_cards_v1"   &&e.newValue)setCards(JSON.parse(e.newValue));
-      if(e.key==="tch_videos_v3"  &&e.newValue)setVideos(JSON.parse(e.newValue));
-      if(e.key==="tch_clients_v3" &&e.newValue)setClients(JSON.parse(e.newValue));
-      if(e.key==="tch_emps_v1"    &&e.newValue)setEmps(JSON.parse(e.newValue));
-    };
-    window.addEventListener("storage",h);
-    return()=>window.removeEventListener("storage",h);
+    (async()=>{
+      const{data:{session}}=await supabase.auth.getSession();
+      if(session?.user){
+        const{data:prof}=await supabase.from("profiles").select("*").eq("id",session.user.id).single();
+        setUser(session.user);setProfile(prof||{role:"community",client_id:null});
+      }
+      setLoading(false);
+    })();
   },[]);
 
-  // Polling fallback — re-reads localStorage every 4 seconds to catch any missed updates
+  // ── Load all data ───────────────────────────────────────────────────────────
+  const loadAll=useCallback(async()=>{
+    const[{data:cl},{data:em},{data:vi},{data:ca},{data:tg}]=await Promise.all([
+      supabase.from("clients").select("*").order("name"),
+      supabase.from("employees").select("*").order("name"),
+      supabase.from("videos").select("*").order("publish_date",{ascending:false}),
+      supabase.from("cards").select("*"),
+      supabase.from("targets").select("*"),
+    ]);
+    if(cl)setClients(cl);
+    if(em)setEmps(em);
+    if(vi)setVideos((vi||[]).map(dbToVideo));
+    if(ca)setCards((ca||[]).map(dbToCard));
+    if(tg)setTargets(dbToTargets(tg||[]));
+  },[]);
+
+  useEffect(()=>{ if(user)loadAll(); },[user,loadAll]);
+
+  // ── Real-time subscriptions ─────────────────────────────────────────────────
   useEffect(()=>{
-    const poll=setInterval(()=>{
-      const c=store.get("tch_cards_v1");   if(c)setCards(p=>JSON.stringify(p)!==JSON.stringify(c)?c:p);
-      const v=store.get("tch_videos_v3");  if(v)setVideos(p=>JSON.stringify(p)!==JSON.stringify(v)?v:p);
-      const cl=store.get("tch_clients_v3");if(cl)setClients(p=>JSON.stringify(p)!==JSON.stringify(cl)?cl:p);
-      const e=store.get("tch_emps_v1");    if(e)setEmps(p=>JSON.stringify(p)!==JSON.stringify(e)?e:p);
-    },4000);
-    return()=>clearInterval(poll);
+    if(!user)return;
+    const channel=supabase.channel("revo-realtime")
+      .on("postgres_changes",{event:"*",schema:"public",table:"clients"},  ()=>supabase.from("clients").select("*").order("name").then(({data})=>{if(data)setClients(data);}))
+      .on("postgres_changes",{event:"*",schema:"public",table:"employees"}, ()=>supabase.from("employees").select("*").order("name").then(({data})=>{if(data)setEmps(data);}))
+      .on("postgres_changes",{event:"*",schema:"public",table:"videos"},    ()=>supabase.from("videos").select("*").order("publish_date",{ascending:false}).then(({data})=>{if(data)setVideos(data.map(dbToVideo));}))
+      .on("postgres_changes",{event:"*",schema:"public",table:"cards"},     ()=>supabase.from("cards").select("*").then(({data})=>{if(data)setCards(data.map(dbToCard));}))
+      .on("postgres_changes",{event:"*",schema:"public",table:"targets"},   ()=>supabase.from("targets").select("*").then(({data})=>{if(data)setTargets(dbToTargets(data||[]));}))
+      .subscribe();
+    return()=>supabase.removeChannel(channel);
+  },[user]);
+
+  // ── Pipeline actions ────────────────────────────────────────────────────────
+  const moveCard=useCallback(async(cardId,stageId,isPublish=false)=>{
+    const card=cards.find(c=>c.id===cardId);if(!card)return;
+    const updates={stage:stageId};
+    if(isPublish||stageId==="publicado"){updates.publish_date=NOW.toISOString().slice(0,10);updates.stage="metricas";}
+    if(stageId==="revision")updates.revision_count=(card.revisionCount||0)+1;
+    await supabase.from("cards").update(updates).eq("id",cardId);
+  },[cards]);
+
+  const deleteCard=useCallback(async id=>{
+    await supabase.from("cards").delete().eq("id",id);
   },[]);
 
-  const addVideo=useCallback(v=>setVideos(p=>[...p,v]),[]);
-  const logout=()=>{setRole(null);store.set("tch_role",null);setComClient(null);};
+  const logout=async()=>{
+    await supabase.auth.signOut();
+    setUser(null);setProfile(null);setClients([]);setEmps([]);setVideos([]);setCards([]);setTargets({});
+  };
 
-  // Pipeline actions
-  const addCard=useCallback(card=>setCards(p=>[...p,card]),[]);
-  const moveCard=useCallback((cardId,stageId,isPublish=false)=>{
-    setCards(prev=>prev.map(c=>{
-      if(c.id!==cardId)return c;
-      const updated={...c,stage:stageId};
-      if(isPublish||stageId==="publicado")updated.publishDate=NOW.toISOString().slice(0,10);
-      if(stageId==="publicado")updated.stage="metricas";
-      if(stageId==="revision")updated.revisionCount=(c.revisionCount||0)+1;
-      return updated;
-    }));
-  },[]);
-  const deleteCard=useCallback(id=>setCards(prev=>prev.filter(c=>c.id!==id)),[]);
-  const submitMetrics=useCallback((card,metrics)=>{
-    // Create video entry from pipeline card + metrics
-    const nums=["views","likes","comments","shares","saves","followers","watchTimeAvg","pauta","paraTi","siguiendo","busqueda","duration"];
-    const newVideo={
-      id:"v"+Date.now(),clientId:card.clientId,title:card.title,
-      platform:card.platform||"TikTok",publishDate:card.publishDate,
-      editor:card.editor||"",cm:"",producer:"",creator:metrics.creator||"",
-      hook:metrics.hook||"",format:metrics.format||"",cta:metrics.cta||"",
-      trigger:metrics.trigger||"",pillar:metrics.pillar||"",
-      ...nums.reduce((o,k)=>({...o,[k]:metrics[k]!=null?metrics[k]:null}),{}),
-    };
-    setVideos(prev=>[...prev,newVideo]);
-    setCards(prev=>prev.filter(c=>c.id!==card.id));
+  const addVideo=useCallback(async v=>{
+    await supabase.from("videos").insert(videoToDB(v));
   },[]);
 
+  const onSetTargets=useCallback(()=>{
+    supabase.from("targets").select("*").then(({data})=>{if(data)setTargets(dbToTargets(data));});
+  },[]);
+
+  // ── Loading / Login ─────────────────────────────────────────────────────────
+  if(loading)return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:28,fontWeight:900,color:C.text,marginBottom:8}}>TheContentHub</div>
+        <div style={{fontSize:13,color:C.muted}}>Conectando...</div>
+      </div>
+    </div>
+  );
+
+  if(!user)return<Login onLogin={(u,p)=>{setUser(u);setProfile(p);}}/>;
+
+  const role=profile?.role||"community";
+  const comClientId=profile?.client_id||null;
   const filtered=useMemo(()=>filterByDate(videos,range),[videos,range]);
-  const logout2=logout;
 
-  if(!role)return<Login onLogin={r=>setRole(r)}/>;
-
-  // ── COMMUNITY VIEW ──
+  // ── COMMUNITY VIEW ──────────────────────────────────────────────────────────
   if(role==="community"){
-    const activeClients=clients.filter(c=>c.status!=="archived");
-    if(!comClient){
-      return(
-        <div style={{minHeight:"100vh",background:C.bg,fontFamily:"system-ui,sans-serif"}}>
-          <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 24px",height:54,display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:shadow}}>
-            <div style={{fontSize:18,fontWeight:900,color:C.text}}>TheContentHub <span style={{background:C.accent+"18",color:C.accent,fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20}}>Community</span></div>
-            <button onClick={logout2} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12}}>Cerrar sesión</button>
-          </div>
-          <div style={{maxWidth:480,margin:"60px auto",padding:"0 16px"}}>
-            <Card>
-              <div style={{fontSize:18,fontWeight:800,color:C.text,marginBottom:6}}>👋 Bienvenido</div>
-              <div style={{fontSize:13,color:C.muted,marginBottom:24}}>¿Para cuál cliente vas a trabajar hoy?</div>
-              {activeClients.map(c=>(
-                <div key={c.id} onClick={()=>setComClient(c.id)}
-                  style={{padding:"14px 16px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:10,cursor:"pointer",background:C.light,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div><div style={{fontSize:14,fontWeight:700,color:C.text}}>{c.name}</div><div style={{fontSize:11,color:C.muted}}>{c.industry}</div></div>
-                  <span style={{fontSize:18}}>→</span>
-                </div>
-              ))}
-            </Card>
-          </div>
-        </div>
-      );
-    }
-    const selClient=clients.find(c=>c.id===comClient);
+    const selClientId=comClientId;
+    const selClient=clients.find(c=>c.id===selClientId);
     return(
       <div style={{minHeight:"100vh",background:C.bg,fontFamily:"system-ui,sans-serif"}}>
         <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 24px",height:54,display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:shadow}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <span style={{fontSize:16,fontWeight:900,color:C.text}}>TheContentHub</span>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:18,fontWeight:900,color:C.text}}>TheContentHub</span>
             <span style={{background:C.accent+"18",color:C.accent,fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20}}>Community</span>
-            <span style={{fontSize:13,fontWeight:600,color:C.text}}>· {selClient?.name}</span>
+            {selClient&&<span style={{fontSize:13,fontWeight:600,color:C.text}}>· {selClient.name}</span>}
           </div>
-          <div style={{display:"flex",gap:12,alignItems:"center"}}>
-            <button onClick={()=>setComClient(null)} style={{background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:12,fontWeight:600}}>← Cambiar cliente</button>
-            <button onClick={logout2} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12}}>Cerrar sesión</button>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <span style={{fontSize:11,color:C.muted}}>{profile?.name||user.email}</span>
+            <button onClick={logout} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12}}>Cerrar sesión</button>
           </div>
         </div>
         <div style={{padding:24}}>
-          <PipelinePage
-            clients={clients} employees={employees} cards={cards} videos={videos}
-            targets={targets} role="community" communityClientId={comClient}
-            onAddCard={addCard} onMoveCard={moveCard} onApproveCard={()=>{}}
-            onMetrics={submitMetrics} onDeleteCard={deleteCard} onSetTargets={()=>{}}
-          />
+          {!selClientId
+            ?<Card style={{textAlign:"center",padding:40}}>
+              <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
+              <div style={{fontSize:15,fontWeight:700,color:C.text}}>Sin cliente asignado</div>
+              <div style={{fontSize:13,color:C.muted,marginTop:6}}>Pídele al admin que te asigne a un cliente en ⚙️ Configuración → Usuarios</div>
+             </Card>
+            :<PipelinePage clients={clients} employees={employees} cards={cards} videos={videos} targets={targets} role="community" communityClientId={selClientId} onSetTargets={()=>{}} onMoveCard={moveCard} onDeleteCard={deleteCard}/>
+          }
         </div>
       </div>
     );
   }
 
-  // ── ADMIN VIEW ──
+  // ── ADMIN VIEW ──────────────────────────────────────────────────────────────
   const activeClient=clients.find(c=>c.id===page);
   const withData=clients.filter(c=>c.status!=="archived"&&cVids(filtered,c.id).length>0);
   const noData=clients.filter(c=>c.status!=="archived"&&cVids(filtered,c.id).length===0);
@@ -1266,6 +1178,7 @@ export default function App(){
       <span style={{fontSize:7,color:dot,flexShrink:0}}>●</span>{label}
     </div>
   );
+
   return(
     <div style={{display:"flex",height:"100vh",background:C.bg,fontFamily:"system-ui,sans-serif",color:C.text,overflow:"hidden"}}>
       <div style={{width:220,background:C.sidebar,flexShrink:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -1281,7 +1194,7 @@ export default function App(){
           {noData.length>0&&<><div style={{padding:"14px 16px 4px",fontSize:9,color:C.sideMuted,letterSpacing:3,fontWeight:700}}>SIN DATOS</div>{noData.map(c=>navItem(c.id,c.name,"#334155"))}</>}
         </div>
         <div style={{padding:"12px 16px",borderTop:"1px solid #1E293B"}}>
-          <div style={{fontSize:11,color:C.sideMuted,wordBreak:"break-all"}}>humberto@revolabsmedia.com</div>
+          <div style={{fontSize:11,color:C.sideMuted}}>{profile?.name||user.email}</div>
           <div style={{fontSize:9,color:"#334155",marginTop:2}}>CSO · REVO Labs</div>
           <button onClick={logout} style={{marginTop:8,background:"none",border:"none",color:"#EF4444",fontSize:11,cursor:"pointer",padding:0}}>Cerrar sesión →</button>
         </div>
@@ -1297,12 +1210,12 @@ export default function App(){
           </div>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:24}}>
-          {page==="dashboard"&&<Dashboard   clients={clients}   videos={filtered} onClient={setPage}/>}
-          {page==="pipeline" &&<PipelinePage clients={clients} employees={employees} cards={cards} videos={videos} targets={targets} role="admin" communityClientId={null} onAddCard={addCard} onMoveCard={moveCard} onApproveCard={moveCard} onMetrics={submitMetrics} onDeleteCard={deleteCard} onSetTargets={setTargets}/>}
-          {page==="creative" &&<CreativePage videos={filtered}/>}
-          {page==="team"     &&<TeamPage     videos={filtered}/>}
-          {page==="settings" &&<SettingsPage clients={clients} employees={employees} setClients={setClients} setEmployees={setEmps}/>}
-          {activeClient      &&<ClientPage   client={activeClient} videos={filtered} onAdd={()=>setModal(activeClient.id)}/>}
+          {page==="dashboard" &&<Dashboard  clients={clients}  videos={filtered} onClient={setPage}/>}
+          {page==="pipeline"  &&<PipelinePage clients={clients} employees={employees} cards={cards} videos={videos} targets={targets} role="admin" communityClientId={null} onSetTargets={onSetTargets} onMoveCard={moveCard} onDeleteCard={deleteCard}/>}
+          {page==="creative"  &&<CreativePage videos={filtered}/>}
+          {page==="team"      &&<TeamPage     videos={filtered}/>}
+          {page==="settings"  &&<SettingsPage clients={clients} employees={employees} setClients={setClients} setEmployees={setEmps} userRole={role}/>}
+          {activeClient       &&<ClientPage   client={activeClient} videos={filtered} onAdd={()=>setModal(activeClient.id)}/>}
         </div>
       </div>
       {modal!==null&&<AddModal clients={clients} employees={employees} defaultClientId={modal} onSave={addVideo} onClose={()=>setModal(null)}/>}
