@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getLang, setLang, t } from "../lib/i18n";
-import { sbGet, sbInsertX, sbSignUp, sbUpsert } from "../lib/supabase";
+import { sbGet, sbInsertX, sbSignUp, sbUpdate, sbUpsert } from "../lib/supabase";
 import { BRAND, Btn, C, Card, inp } from "../ui/theme";
 
 const ROLES=[
@@ -9,9 +9,13 @@ const ROLES=[
   {id:"member", label:"Member",  desc:"Can move cards and write scripts."},
 ];
 
-function SettingsPage({workspaceId,user,profile}){
-  const[tab,setTab]=useState("team");
+function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReload}){
   const[members,setMembers]=useState([]);
+  const[wsEdit,setWsEdit]=useState(wsName||"");
+  const[nameEdit,setNameEdit]=useState(profile?.name||"");
+  const[clientEdits,setClientEdits]=useState({});
+  const[note,setNote]=useState(null);
+  useEffect(()=>{setWsEdit(wsName||"");},[wsName]);
   const[form,setForm]=useState({name:"",email:"",password:"",role:"member"});
   const[msg,setMsg]=useState(null);
   const[busy,setBusy]=useState(false);
@@ -66,10 +70,10 @@ function SettingsPage({workspaceId,user,profile}){
         <div style={{padding:"15px 18px 0"}}>
           <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{t("Settings")}</div>
           <div style={{fontSize:17,fontWeight:600,color:C.text,letterSpacing:-0.2,marginBottom:12}}>{t("Workspace")}</div>
-          <div style={{display:"flex",gap:2}}>
-            {[["team",t("Team")],["language",t("Language")]].map(([id,label])=>(
-              <button key={id} onClick={()=>setTab(id)}
-                style={{padding:"8px 14px",border:"none",cursor:"pointer",fontSize:12,fontWeight:tab===id?600:400,
+          <div style={{display:"flex",gap:2,flexWrap:"wrap"}}>
+            {[["users",t("Users")],["clients",t("Clients")],["workspace",t("Workspace")],["account",t("My account")],["language",t("Language")]].map(([id,label])=>(
+              <button key={id} onClick={()=>onTab&&onTab(id)}
+                style={{padding:"8px 13px",border:"none",cursor:"pointer",fontSize:12,fontWeight:tab===id?600:400,
                   color:tab===id?C.text:C.muted,background:"transparent",
                   borderBottom:tab===id?`2px solid ${C.text}`:"2px solid transparent"}}>{label}</button>
             ))}
@@ -77,7 +81,7 @@ function SettingsPage({workspaceId,user,profile}){
         </div>
       </Card>
 
-      {tab==="team"&&(
+      {tab==="users"&&(
         <>
           <Card style={{marginBottom:14}}>
             <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{t("Add someone to the team")}</div>
@@ -134,6 +138,61 @@ function SettingsPage({workspaceId,user,profile}){
             </div>
           </Card>
         </>
+      )}
+
+
+      {tab==="clients"&&(
+        <Card>
+          <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>{t("Clients")} · {(clients||[]).length}</div>
+          {(clients||[]).length===0&&<div style={{fontSize:12,color:C.muted}}>{t("No clients to manage yet.")}</div>}
+          <div style={{display:"flex",flexDirection:"column",gap:7}}>
+            {(clients||[]).map(c=>{
+              const val=clientEdits[c.id]!==undefined?clientEdits[c.id]:c.name;
+              const dirty=val.trim()&&val.trim()!==c.name;
+              return(
+                <div key={c.id} style={{display:"flex",alignItems:"center",gap:9,background:C.light,borderRadius:8,padding:"8px 10px"}}>
+                  <span style={{fontSize:15,flexShrink:0}}>{c.emoji||"🏢"}</span>
+                  <input value={val} onChange={e=>setClientEdits(p2=>({...p2,[c.id]:e.target.value}))}
+                    style={{...inp,flex:1,fontSize:12,padding:"6px 9px",background:C.surface}}/>
+                  <button disabled={!dirty}
+                    onClick={async()=>{await sbUpdate("agency_clients","id",c.id,{name:val.trim()});setNote({ok:true,text:t("Saved ✓")});onReload&&onReload();}}
+                    style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${dirty?C.text:C.border}`,background:dirty?C.text:C.surface,color:dirty?"#FFF":C.muted,cursor:dirty?"pointer":"not-allowed",fontSize:11,fontWeight:600,flexShrink:0}}>
+                    {t("Save")}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {note&&<div style={{fontSize:12,color:note.ok?BRAND.green:C.red,marginTop:10}}>{note.text}</div>}
+        </Card>
+      )}
+
+      {tab==="workspace"&&(
+        <Card>
+          <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>{t("Workspace")}</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{t("Workspace name")}</div>
+          <input value={wsEdit} onChange={e=>setWsEdit(e.target.value)} style={{...inp,marginBottom:12}}/>
+          <Btn primary disabled={!wsEdit.trim()||wsEdit.trim()===wsName}
+            onClick={async()=>{await sbUpdate("workspaces","id",workspaceId,{name:wsEdit.trim()});setNote({ok:true,text:t("Saved ✓")});onReload&&onReload();}}>
+            {t("Save")}
+          </Btn>
+          {note&&<span style={{fontSize:12,color:note.ok?BRAND.green:C.red,marginLeft:10}}>{note.text}</span>}
+        </Card>
+      )}
+
+      {tab==="account"&&(
+        <Card>
+          <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>{t("My account")}</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{t("Email")}</div>
+          <div style={{fontSize:13,color:C.text,background:C.light,borderRadius:8,padding:"9px 12px",marginBottom:14}}>{user.email}</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{t("Display name")}</div>
+          <input value={nameEdit} onChange={e=>setNameEdit(e.target.value)} style={{...inp,marginBottom:12}}/>
+          <Btn primary disabled={!nameEdit.trim()||nameEdit.trim()===(profile?.name||"")}
+            onClick={async()=>{await sbUpdate("profiles","id",user.id,{name:nameEdit.trim()});setNote({ok:true,text:t("Saved ✓")});}}>
+            {t("Save")}
+          </Btn>
+          {note&&<span style={{fontSize:12,color:note.ok?BRAND.green:C.red,marginLeft:10}}>{note.text}</span>}
+        </Card>
       )}
 
       {tab==="language"&&(

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AGENCY_STAGES, CLIENT_QUESTIONS } from "../data/constants";
 import { addMonths, curMonth, daysSince, fmt, monthLabel, uuid } from "../lib/format";
-import { createWorkspace, getNotes, getWorkspaceMember, sbDelete, sbInsert, sbInsertX, sbUpdate, sbUpsert } from "../lib/supabase";
+import { createWorkspace, getNotes, getWorkspaceMember, sbDelete, sbGetWhere, sbInsert, sbInsertX, sbUpdate, sbUpsert } from "../lib/supabase";
 import { AgencyAnalytics } from "./AgencyAnalytics";
 import { AttachVideoModal, NotesPanel, ReviewRoom } from "./AgencyReview";
 import { AddVideoModal, GoalModal, MetricsModal } from "./Modals";
@@ -153,16 +153,16 @@ function ClientProfileSetup({client,onComplete,onSkip}){
         <div style={{display:"inline-flex",alignItems:"center",gap:6,background:C.light,border:`1px solid ${C.border}`,borderRadius:20,padding:"3px 10px",marginBottom:14,fontSize:11,color:C.muted}}>
           <span>{client.emoji}</span><span style={{fontWeight:600,color:C.text}}>{client.name}</span>
         </div>
-        <div style={{fontSize:11,fontWeight:600,color:C.accent,letterSpacing:0.5,marginBottom:6}}>{step+1} of {CLIENT_QUESTIONS.length}</div>
-        <div style={{fontSize:18,fontWeight:800,color:C.text,marginBottom:5,letterSpacing:-0.3,lineHeight:1.3}}>{q.label}</div>
-        <div style={{fontSize:13,color:C.muted,marginBottom:20,lineHeight:1.5}}>{q.hint}</div>
+        <div style={{fontSize:11,fontWeight:600,color:C.accent,letterSpacing:0.5,marginBottom:6}}>{step+1} {t('of')} {CLIENT_QUESTIONS.length}</div>
+        <div style={{fontSize:18,fontWeight:800,color:C.text,marginBottom:5,letterSpacing:-0.3,lineHeight:1.3}}>{t(q.label)}</div>
+        <div style={{fontSize:13,color:C.muted,marginBottom:20,lineHeight:1.5}}>{t(q.hint)}</div>
         <input
           key={q.key}
           autoFocus
           value={vals[q.key]}
           onChange={e=>setVals(p=>({...p,[q.key]:e.target.value}))}
           onKeyDown={e=>e.key==="Enter"&&canNext&&next()}
-          placeholder={q.placeholder}
+          placeholder={t(q.placeholder)}
           style={{...inp,fontSize:14,padding:"12px 14px",marginBottom:20}}
         />
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -181,7 +181,68 @@ function ClientProfileSetup({client,onComplete,onSkip}){
 
 // ── AGENCY DASHBOARD ──────────────────────────────────────────────────────────
 
-function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange,onSelectClient,onAddClient,onSetTarget,onReschedule,businessProfile}){
+// ── MONTH GOALS ───────────────────────────────────────────────────────────────
+// Goals are the work, not configuration — so they're set from the dashboard,
+// every client on one screen, rather than buried inside each pipeline.
+function GoalsModal({clients,targets,month,workspaceId,onSaved,onClose}){
+  const[vals,setVals]=useState(()=>
+    clients.reduce((o,c)=>({...o,[c.id]:String((targets.find(t2=>t2.client_id===c.id&&t2.month===month)?.goal)||"")}),{}));
+  const[busy,setBusy]=useState(false);
+  const total=Object.values(vals).reduce((a,v)=>a+(parseInt(v,10)||0),0);
+
+  const save=async()=>{
+    if(busy)return;
+    setBusy(true);
+    const rows=clients.map(c=>({workspace_id:workspaceId,client_id:c.id,month,goal:parseInt(vals[c.id],10)||0}));
+    await sbUpsert("agency_targets",rows,"workspace_id,client_id,month");
+    setBusy(false);
+    onSaved&&onSaved();
+    onClose();
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999,fontFamily:"system-ui,sans-serif",padding:16}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:shMd,width:"min(440px,100%)",maxHeight:"88vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{display:"flex",height:3,flexShrink:0}}>
+          {[BRAND.red,BRAND.yellow,BRAND.blue,BRAND.green].map((c,i)=><div key={i} style={{flex:1,background:c}}/>)}
+        </div>
+        <div style={{padding:"16px 20px 12px",flexShrink:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+            <div>
+              <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>{t("Monthly goals")}</div>
+              <div style={{fontSize:16,fontWeight:600,color:C.text,letterSpacing:-0.2}}>{monthLabel(month)}</div>
+            </div>
+            <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:20,cursor:"pointer",lineHeight:1}}>×</button>
+          </div>
+          <div style={{fontSize:12,color:C.muted,lineHeight:1.55,marginTop:6}}>{t("How many videos should each client publish this month?")}</div>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"0 20px"}}>
+          {clients.map(c=>(
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`0.5px solid ${C.border}`}}>
+              <span style={{fontSize:14,flexShrink:0}}>{c.emoji||"🏢"}</span>
+              <span style={{flex:1,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</span>
+              <input type="number" min="0" max="200" value={vals[c.id]}
+                onChange={e=>setVals(p=>({...p,[c.id]:e.target.value.replace(/[^\d]/g,"")}))}
+                placeholder="0"
+                style={{...inp,width:72,textAlign:"center",fontSize:14,fontWeight:600,padding:"7px 8px"}}/>
+            </div>
+          ))}
+          {clients.length===0&&<div style={{fontSize:12,color:C.muted,padding:"20px 0"}}>{t("Add a client first.")}</div>}
+        </div>
+        <div style={{padding:"12px 20px 16px",borderTop:`0.5px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexShrink:0,background:"#FAFAFA"}}>
+          <div style={{fontSize:11,color:C.muted}}>{total} {t("videos across every client")}</div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={onClose}>{t("Cancel")}</Btn>
+            <Btn primary onClick={save} disabled={busy||clients.length===0}>{busy?t("Saving…"):t("Save goals ✓")}</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange,onSelectClient,onAddClient,onSetTarget,onReschedule,workspaceId,onReloadTargets,businessProfile}){
   const[showAddClient,setShowAddClient]=useState(false);
   const[newName,setNewName]=useState("");
   const[adding,setAdding]=useState(false);
@@ -191,6 +252,7 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
   const[trayOpen,setTrayOpen]=useState(false);
   const[dayOpen,setDayOpen]=useState(null);
   const[calOpen,setCalOpen]=useState(true);
+  const[goalsOpen,setGoalsOpen]=useState(false);
   // Colours identify clients across the whole calendar.
   const CLIENT_COLORS=[BRAND.blue,BRAND.green,BRAND.red,BRAND.yellow,C.purple,"#F97316","#0EA5E9","#DB2777"];
   const colorOf=id=>CLIENT_COLORS[Math.max(0,clients.findIndex(c=>c.id===id))%CLIENT_COLORS.length];
@@ -255,7 +317,7 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
           <button onClick={()=>onMonthChange(addMonths(month,1))} style={{width:30,height:30,border:`1px solid ${C.border}`,borderRadius:7,background:C.surface,cursor:"pointer",fontSize:13,color:C.text}}>→</button>
           {month!==curMonth()&&<button onClick={()=>onMonthChange(curMonth())} style={{padding:"5px 10px",border:`1px solid ${C.border}`,borderRadius:7,background:C.light,cursor:"pointer",fontSize:11,color:C.muted}}>{t("This month")}</button>}
         </div>
-        <Btn primary onClick={()=>setShowAddClient(true)}>{t("+ Add client")}</Btn>
+        <div style={{display:"flex",gap:8}}><Btn onClick={()=>setGoalsOpen(true)}>{t("Monthly goals")}</Btn><Btn primary onClick={()=>setShowAddClient(true)}>{t("+ Add client")}</Btn></div>
       </div>
       {/* LEVEL 1 — the agency as a whole */}
       {clients.length>0&&(
@@ -353,6 +415,8 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
           </div>
         </>
       )}
+
+      {goalsOpen&&<GoalsModal clients={clients} targets={targets} month={month} workspaceId={workspaceId} onSaved={onReloadTargets} onClose={()=>setGoalsOpen(false)}/>}
 
       {clients.length>0&&(
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7,gap:8}}>
@@ -860,6 +924,9 @@ function AgencyApp({user,profile,onLogout}){
   const[month,setMonth]=useState(curMonth());
   const[selectedClient,setSelectedClient]=useState(null);
   const[page,setPage]=useState("dashboard");
+  const[menuOpen,setMenuOpen]=useState(false);
+  const[settingsTab,setSettingsTab]=useState("users");
+  const[wsName,setWsName]=useState("");
   const[loading,setLoading]=useState(true);
   const[needsOnboarding,setNeedsOnboarding]=useState(false);
   const[wsId,setWsId]=useState(null);
@@ -878,6 +945,8 @@ function AgencyApp({user,profile,onLogout}){
       }
       const wid=mem.workspace_id;
       setWsId(wid);
+      if(mem.workspaces?.name)setWsName(mem.workspaces.name);
+      else sbGetWhere("workspaces","id",wid).then(r=>{if(r&&r[0]?.name)setWsName(r[0].name);});
       setNeedsOnboarding(false);
       const[cls,vids,tgts]=await Promise.all([
         sbGetWhere("agency_clients","workspace_id",wid,"&order=created_at.asc"),
@@ -987,21 +1056,48 @@ function AgencyApp({user,profile,onLogout}){
           {selectedClient&&<div style={{display:"flex",alignItems:"center",gap:6,marginLeft:8}}><span style={{color:C.muted,fontSize:12}}>›</span><span style={{fontSize:13,fontWeight:600,color:C.text}}>{selectedClient.emoji} {selectedClient.name}</span></div>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:3}}>
-          {[["dashboard","Dashboard"],["brainstorm","Brainstorm"],["analytics","Analytics"],["settings","Settings"]].map(([id,label])=>(
+          {[["dashboard","Dashboard"],["brainstorm","Brainstorm"],["analytics","Analytics"]].map(([id,label])=>(
             <button key={id} onClick={()=>{setPage(id);setSelectedClient(null);}}
               style={{padding:"5px 12px",border:"none",cursor:"pointer",fontSize:12,fontWeight:page===id&&!selectedClient?600:400,color:page===id&&!selectedClient?C.text:C.muted,background:page===id&&!selectedClient?C.light:"transparent",borderRadius:7}}>{t(label)}</button>
           ))}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{display:"flex",border:`1px solid ${C.border}`,borderRadius:20,overflow:"hidden"}}>
-            {["es","en"].map(l=>(
-              <button key={l} onClick={()=>setLang(l)}
-                style={{padding:"3px 9px",border:"none",cursor:"pointer",fontSize:10,fontWeight:getLang()===l?700:400,
-                  background:getLang()===l?C.text:"transparent",color:getLang()===l?"#FFF":C.muted,textTransform:"uppercase"}}>{l}</button>
-            ))}
-          </div>
-          <span style={{fontSize:11,color:C.muted}}>{profile?.name||user.email}</span>
-          <button onClick={onLogout} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:11}}>{t("Sign out")}</button>
+        {/* Account menu — settings live behind your identity, not beside daily work */}
+        <div style={{position:"relative"}}>
+          <button onClick={()=>setMenuOpen(o=>!o)}
+            style={{display:"flex",alignItems:"center",gap:7,padding:"5px 11px",border:`1px solid ${menuOpen?C.text:C.border}`,borderRadius:20,background:C.surface,cursor:"pointer",fontSize:11,color:C.text}}>
+            <span style={{width:18,height:18,borderRadius:"50%",background:C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:C.muted}}>
+              {(profile?.name||user.email||"?").slice(0,1).toUpperCase()}
+            </span>
+            <span style={{maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile?.name||user.email}</span>
+            <span style={{fontSize:9,color:C.muted,transform:menuOpen?"rotate(180deg)":"none",transition:"transform .15s"}}>▾</span>
+          </button>
+          {menuOpen&&(
+            <>
+              <div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:900}}/>
+              <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,width:230,background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 12px 32px rgba(0,0,0,.14)",zIndex:901,overflow:"hidden",padding:"6px 0"}}>
+                <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",padding:"7px 13px 5px"}}>{wsName||t("Workspace")}</div>
+                {[["users",t("Users")],["clients",t("Clients")],["workspace",t("Workspace")]].map(([id,label])=>(
+                  <button key={id} onClick={()=>{setSettingsTab(id);setPage("settings");setSelectedClient(null);setMenuOpen(false);}}
+                    style={{display:"block",width:"100%",textAlign:"left",padding:"8px 13px",border:"none",background:"transparent",cursor:"pointer",fontSize:12,color:C.text}}
+                    onMouseEnter={e=>e.currentTarget.style.background=C.light}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{label}</button>
+                ))}
+                <div style={{height:1,background:C.border,margin:"6px 0"}}/>
+                <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",padding:"5px 13px 5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</div>
+                {[["account",t("My account")],["language",t("Language")]].map(([id,label])=>(
+                  <button key={id} onClick={()=>{setSettingsTab(id);setPage("settings");setSelectedClient(null);setMenuOpen(false);}}
+                    style={{display:"block",width:"100%",textAlign:"left",padding:"8px 13px",border:"none",background:"transparent",cursor:"pointer",fontSize:12,color:C.text}}
+                    onMouseEnter={e=>e.currentTarget.style.background=C.light}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{label}</button>
+                ))}
+                <div style={{height:1,background:C.border,margin:"6px 0"}}/>
+                <button onClick={onLogout}
+                  style={{display:"block",width:"100%",textAlign:"left",padding:"8px 13px",border:"none",background:"transparent",cursor:"pointer",fontSize:12,color:C.red}}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.light}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{t("Sign out")}</button>
+              </div>
+            </>
+          )}
         </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:20}}>
@@ -1010,10 +1106,10 @@ function AgencyApp({user,profile,onLogout}){
           :page==="analytics"
           ?<AgencyAnalytics clients={clients} videos={videos} targets={targets} month={month} onMonthChange={setMonth} onOpenClient={c=>setSelectedClient(c)}/>
           :page==="settings"
-          ?<SettingsPage workspaceId={wsId} user={user} profile={profile}/>
+          ?<SettingsPage workspaceId={wsId} wsName={wsName} user={user} profile={profile} tab={settingsTab} onTab={setSettingsTab} clients={clients} onReload={load}/>
           :page==="brainstorm"
           ?<AgencyBrainstorm clients={clients} videos={videos} userId={user.id} month={month} onSendToPipeline={(clientId,ideas)=>{ideas.forEach(v=>addVideo({...v,clientId}));}}/>
-          :<AgencyDashboard clientError={clientError} clients={clients} videos={videos} targets={targets} month={month} onMonthChange={setMonth} onSelectClient={c=>{setSelectedClient(c);}} onAddClient={addClient} onSetTarget={setTarget} onReschedule={reschedule}/>
+          :<AgencyDashboard clientError={clientError} clients={clients} videos={videos} targets={targets} month={month} onMonthChange={setMonth} onSelectClient={c=>{setSelectedClient(c);}} onAddClient={addClient} onSetTarget={setTarget} onReschedule={reschedule} workspaceId={wsId} onReloadTargets={load}/>
         }
       </div>
     </div>
