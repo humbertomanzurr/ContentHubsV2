@@ -104,7 +104,7 @@ function ScriptDocument({card,analytics,onSave,onClose}){
             <div style={{padding:"10px 12px",borderBottom:`0.5px solid ${C.border}`}}>
               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
                 <div style={{width:3,height:11,borderRadius:2,background:secColor,flexShrink:0}}/>
-                <div style={{fontSize:9,fontWeight:600,letterSpacing:1,textTransform:"uppercase",color:C.text}}>{focusLabel} moves</div>
+                <div style={{fontSize:9,fontWeight:600,letterSpacing:1,textTransform:"uppercase",color:C.text}}>{t(focusLabel+" moves")}</div>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 <div style={{fontSize:10,color:C.muted,lineHeight:1.45,flex:1}}>{t("Questions to push your thinking. You write the line.")}</div>
@@ -119,7 +119,7 @@ function ScriptDocument({card,analytics,onSave,onClose}){
                 <div style={{fontSize:9,fontWeight:600,letterSpacing:1,textTransform:"uppercase",color:C.muted,marginBottom:6}}>{t("What you've written")}</div>
                 {prior.map(p=>(
                   <div key={p.key} style={{borderLeft:`2px solid ${p.color}`,paddingLeft:7,marginBottom:6}}>
-                    <div style={{fontSize:9,color:p.color,fontWeight:600,marginBottom:1}}>{p.label}</div>
+                    <div style={{fontSize:9,color:p.color,fontWeight:600,marginBottom:1}}>{t(p.label)}</div>
                     <div style={{fontSize:10,color:C.text,lineHeight:1.45}}>
                       {p.text.length>90?p.text.slice(0,90).trim()+"…":p.text}
                     </div>
@@ -139,13 +139,13 @@ function ScriptDocument({card,analytics,onSave,onClose}){
                     onMouseLeave={e=>{if(!open)e.currentTarget.style.borderColor=C.border;}}>
                     <div style={{padding:"8px 10px",display:"flex",alignItems:"center",gap:6}}>
                       <div style={{width:5,height:5,borderRadius:"50%",background:open?secColor:C.border,flexShrink:0,transition:"background .15s"}}/>
-                      <div style={{fontSize:11,fontWeight:500,color:C.text,lineHeight:1.35,flex:1}}>{m.move}</div>
+                      <div style={{fontSize:11,fontWeight:500,color:C.text,lineHeight:1.35,flex:1}}>{t(m.move)}</div>
                       <div style={{fontSize:9,color:C.muted,transform:open?"rotate(90deg)":"none",transition:"transform .18s",flexShrink:0}}>›</div>
                     </div>
                     {open&&(
                       <div style={{padding:"0 10px 10px 21px"}}>
-                        <div style={{fontSize:11,color:C.text,lineHeight:1.55,marginBottom:7}}>{m.ask}</div>
-                        <div style={{fontSize:10,color:C.muted,lineHeight:1.5,paddingLeft:8,borderLeft:`2px solid ${secColor}40`}}>{m.push}</div>
+                        <div style={{fontSize:11,color:C.text,lineHeight:1.55,marginBottom:7}}>{t(m.ask)}</div>
+                        <div style={{fontSize:10,color:C.muted,lineHeight:1.5,paddingLeft:8,borderLeft:`2px solid ${secColor}40`}}>{t(m.push)}</div>
                       </div>
                     )}
                   </div>
@@ -164,7 +164,7 @@ function ScriptDocument({card,analytics,onSave,onClose}){
                   </span>
                 ))}
               </div>
-              <div style={{fontSize:9,color:C.muted,marginTop:6,lineHeight:1.4}}>Click to add to {focusLabel.toLowerCase()}</div>
+              <div style={{fontSize:9,color:C.muted,marginTop:6,lineHeight:1.4}}>{t("Click to add to "+focusLabel.toLowerCase())}</div>
             </div>
           </div>
 
@@ -175,8 +175,8 @@ function ScriptDocument({card,analytics,onSave,onClose}){
                 style={{padding:"14px 20px",borderBottom:`0.5px solid ${C.border}`,background:focusField===sec.key?sec.color+"07":"transparent",cursor:"text",transition:"background .2s"}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                   <div style={{width:3,height:13,borderRadius:2,background:sec.color,flexShrink:0}}/>
-                  <div style={{fontSize:9,fontWeight:600,color:C.text,textTransform:"uppercase",letterSpacing:1.2}}>{sec.label}</div>
-                  <div style={{fontSize:9,color:C.muted}}>{sec.sublabel}</div>
+                  <div style={{fontSize:9,fontWeight:600,color:C.text,textTransform:"uppercase",letterSpacing:1.2}}>{t(sec.label)}</div>
+                  <div style={{fontSize:9,color:C.muted}}>{t(sec.sublabel)}</div>
                 </div>
                 <textarea
                   ref={el=>refs.current[sec.key]=el}
@@ -204,7 +204,7 @@ function ScriptDocument({card,analytics,onSave,onClose}){
                   ✦ Personalized based on your data
                 </div>
               )}
-              <div style={{fontSize:9,fontWeight:500,letterSpacing:1,textTransform:"uppercase",color:C.muted,marginBottom:8}}>{platform} insights</div>
+              <div style={{fontSize:9,fontWeight:500,letterSpacing:1,textTransform:"uppercase",color:C.muted,marginBottom:8}}>{platform} {t("insights")}</div>
               {(hasData?[
                 analytics?.topHook&&{text:`${analytics.topHook} hooks outperform everything else`,sub:"Lead with what works for you",color:BRAND.red},
                 analytics?.topFormat&&{text:`${analytics.topFormat} is your strongest format`,sub:"Your audience trusts this style",color:BRAND.yellow},
@@ -212,8 +212,8 @@ function ScriptDocument({card,analytics,onSave,onClose}){
                 <div key={i} style={{display:"flex",gap:6,marginBottom:9}}>
                   <div style={{width:6,height:6,borderRadius:"50%",background:ins.color,flexShrink:0,marginTop:4}}/>
                   <div>
-                    <div style={{fontSize:11,color:C.text,lineHeight:1.4,fontWeight:500}}>{ins.text}</div>
-                    <div style={{fontSize:10,color:C.muted,marginTop:1,lineHeight:1.35}}>{ins.sub}</div>
+                    <div style={{fontSize:11,color:C.text,lineHeight:1.4,fontWeight:500}}>{t(ins.text)}</div>
+                    <div style={{fontSize:10,color:C.muted,marginTop:1,lineHeight:1.35}}>{t(ins.sub)}</div>
                   </div>
                 </div>
               ))}

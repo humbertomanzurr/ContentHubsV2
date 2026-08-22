@@ -1,0 +1,164 @@
+import { useEffect, useState } from "react";
+import { getLang, setLang, t } from "../lib/i18n";
+import { sbGet, sbInsertX, sbSignUp, sbUpsert } from "../lib/supabase";
+import { BRAND, Btn, C, Card, inp } from "../ui/theme";
+
+const ROLES=[
+  {id:"admin",  label:"Admin",   desc:"Sees every client, can publish and approve."},
+  {id:"editor", label:"Editor",  desc:"Works in Editing, attaches finished videos."},
+  {id:"member", label:"Member",  desc:"Can move cards and write scripts."},
+];
+
+function SettingsPage({workspaceId,user,profile}){
+  const[tab,setTab]=useState("team");
+  const[members,setMembers]=useState([]);
+  const[form,setForm]=useState({name:"",email:"",password:"",role:"member"});
+  const[msg,setMsg]=useState(null);
+  const[busy,setBusy]=useState(false);
+
+  const load=()=>{
+    if(!workspaceId)return;
+    sbGet("workspace_members",`&workspace_id=eq.${workspaceId}`).then(rows=>setMembers(rows||[]));
+  };
+  useEffect(load,[workspaceId]);
+
+  const createUser=async()=>{
+    if(busy)return;
+    if(!form.name.trim()||!form.email.trim()||!form.password.trim()){
+      setMsg({ok:false,text:t("Fill in every field")});return;
+    }
+    if(form.password.length<6){
+      setMsg({ok:false,text:t("Password must be at least 6 characters")});return;
+    }
+    setBusy(true);setMsg(null);
+    const{user:nu,error}=await sbSignUp(form.email.trim(),form.password);
+    if(error||!nu){
+      setBusy(false);
+      setMsg({ok:false,text:(error?.message||error?.msg||t("Could not create the account"))});
+      return;
+    }
+    const id=nu.id||nu.user?.id;
+    if(id){
+      // upsert, because a signup trigger may already have made a placeholder row
+      await sbUpsert("profiles",{id,name:form.name.trim(),email:form.email.trim(),account_type:"agency"},"id");
+      const r=await sbInsertX("workspace_members",{workspace_id:workspaceId,user_id:id,role:form.role,created_at:new Date().toISOString()});
+      if(!r.ok){setBusy(false);setMsg({ok:false,text:r.error||t("Account made, but not added to the workspace")});return;}
+    }
+    setMsg({ok:true,text:`${t("Account created for")} ${form.email.trim()}`});
+    setForm({name:"",email:"",password:"",role:"member"});
+    setBusy(false);
+    load();
+  };
+
+  const field=(label,key,type="text")=>(
+    <div style={{marginBottom:12}}>
+      <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:500}}>{label}</div>
+      <input type={type} value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))} style={inp}/>
+    </div>
+  );
+
+  return(
+    <div>
+      <Card pad={0} style={{marginBottom:16,overflow:"hidden"}}>
+        <div style={{display:"flex",height:3}}>
+          {[BRAND.red,BRAND.yellow,BRAND.blue,BRAND.green].map((c,i)=><div key={i} style={{flex:1,background:c}}/>)}
+        </div>
+        <div style={{padding:"15px 18px 0"}}>
+          <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{t("Settings")}</div>
+          <div style={{fontSize:17,fontWeight:600,color:C.text,letterSpacing:-0.2,marginBottom:12}}>{t("Workspace")}</div>
+          <div style={{display:"flex",gap:2}}>
+            {[["team",t("Team")],["language",t("Language")]].map(([id,label])=>(
+              <button key={id} onClick={()=>setTab(id)}
+                style={{padding:"8px 14px",border:"none",cursor:"pointer",fontSize:12,fontWeight:tab===id?600:400,
+                  color:tab===id?C.text:C.muted,background:"transparent",
+                  borderBottom:tab===id?`2px solid ${C.text}`:"2px solid transparent"}}>{label}</button>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {tab==="team"&&(
+        <>
+          <Card style={{marginBottom:14}}>
+            <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{t("Add someone to the team")}</div>
+            <div style={{fontSize:12,color:C.muted,lineHeight:1.55,marginBottom:14}}>
+              {t("They sign in with this email and password from any device.")}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div style={{gridColumn:"1/-1"}}>{field(t("Full name"),"name")}</div>
+              {field(t("Email"),"email","email")}
+              {field(t("Temporary password"),"password","password")}
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:6,fontWeight:500}}>{t("Role")}</div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:14}}>
+              {ROLES.map(r=>{
+                const on=form.role===r.id;
+                return(
+                  <button key={r.id} onClick={()=>setForm(p=>({...p,role:r.id}))} title={t(r.desc)}
+                    style={{padding:"6px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:on?600:400,
+                      color:on?C.text:C.muted,background:C.surface,border:`1px solid ${on?C.text:C.border}`}}>
+                    {t(r.label)}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{fontSize:11,color:C.muted,lineHeight:1.5,marginBottom:14,paddingLeft:9,borderLeft:`2px solid ${C.border}`}}>
+              {t((ROLES.find(r=>r.id===form.role)||{}).desc||"")}
+            </div>
+            <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+              <Btn primary onClick={createUser} disabled={busy}>{busy?t("Creating…"):t("Create account ✓")}</Btn>
+              {msg&&<span style={{fontSize:12,color:msg.ok?BRAND.green:C.red,lineHeight:1.5}}>{msg.text}</span>}
+            </div>
+            <div style={{fontSize:10,color:C.muted,lineHeight:1.55,marginTop:12,background:C.light,borderRadius:8,padding:"9px 11px"}}>
+              {t("If Supabase has email confirmation switched on, they'll need to confirm before signing in.")}
+            </div>
+          </Card>
+
+          <Card>
+            <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>
+              {t("Team")} · {members.length}
+            </div>
+            {members.length===0&&<div style={{fontSize:12,color:C.muted}}>{t("Nobody else yet.")}</div>}
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {members.map(m=>(
+                <div key={m.user_id} style={{display:"flex",alignItems:"center",gap:10,background:C.light,borderRadius:8,padding:"9px 11px"}}>
+                  <div style={{width:24,height:24,borderRadius:7,background:C.surface,border:`0.5px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:600,color:C.muted}}>
+                    {(m.user_id||"?").slice(0,1).toUpperCase()}
+                  </div>
+                  <div style={{flex:1,minWidth:0,fontSize:11,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    {m.user_id===user.id?(profile?.name||user.email):m.user_id}
+                  </div>
+                  <span style={{fontSize:10,color:C.muted,background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:20,padding:"2px 8px"}}>{t(m.role||"member")}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </>
+      )}
+
+      {tab==="language"&&(
+        <Card>
+          <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{t("Language")}</div>
+          <div style={{fontSize:12,color:C.muted,lineHeight:1.55,marginBottom:14}}>
+            {t("This is saved on this device, so each person can pick their own.")}
+          </div>
+          <div style={{display:"flex",gap:9}}>
+            {[["es","Español"],["en","English"]].map(([code,label])=>{
+              const on=getLang()===code;
+              return(
+                <button key={code} onClick={()=>setLang(code)}
+                  style={{flex:1,padding:"14px 12px",borderRadius:10,cursor:"pointer",textAlign:"left",
+                    border:`1px solid ${on?C.text:C.border}`,background:on?C.light:C.surface}}>
+                  <div style={{fontSize:13,fontWeight:on?600:400,color:C.text}}>{label}</div>
+                  <div style={{fontSize:10,color:C.muted,marginTop:2}}>{on?t("In use"):t("Switch to this")}</div>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+export { SettingsPage };

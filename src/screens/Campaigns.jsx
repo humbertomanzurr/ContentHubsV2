@@ -715,8 +715,8 @@ ${JSON.stringify(selectedItems,null,2)}`}],
                 </div>
                 <div style={{flex:1,fontSize:13,color:C.text,fontWeight:500,lineHeight:1.35}}>{idea.title}</div>
                 <div style={{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}>
-                  {idea.hook&&<span style={{fontSize:9,padding:"2px 6px",borderRadius:20,background:C.surface,color:C.muted,border:`0.5px solid ${C.border}`}}>{idea.hook}</span>}
-                  {idea.format&&<span style={{fontSize:9,padding:"2px 6px",borderRadius:20,background:C.surface,color:C.muted,border:`0.5px solid ${C.border}`}}>{idea.format}</span>}
+                  {idea.hook&&<span style={{fontSize:9,padding:"2px 6px",borderRadius:20,background:C.surface,color:C.muted,border:`0.5px solid ${C.border}`}}>{t(idea.hook)}</span>}
+                  {idea.format&&<span style={{fontSize:9,padding:"2px 6px",borderRadius:20,background:C.surface,color:C.muted,border:`0.5px solid ${C.border}`}}>{t(idea.format)}</span>}
                   {isSent&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:BRAND.green+"18",color:BRAND.green,fontWeight:600}}>{t("Sent")}</span>}
                 </div>
               </div>

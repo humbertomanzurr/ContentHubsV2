@@ -285,7 +285,7 @@ Return ONLY a JSON array of 5 short phrases, 1-3 words each, describing the SOUN
                 <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>
                   {sound.mode==="muted"?"Sound & captions":sound.mode==="licensed"?"Background music":"Sound"}
                 </div>
-                <div style={{fontSize:10,color:C.muted,lineHeight:1.5,marginBottom:8}}>{sound.note}</div>
+                <div style={{fontSize:10,color:C.muted,lineHeight:1.5,marginBottom:8}}>{t(sound.note)}</div>
                 {sound.mode==="trend"&&(
                   <>
                     {moods.length===0?(
@@ -319,7 +319,7 @@ Return ONLY a JSON array of 5 short phrases, 1-3 words each, describing the SOUN
             {sound.mode==="none"&&(
               <div style={{background:C.surface,border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${BRAND.yellow}`,borderRadius:7,padding:"9px 10px"}}>
                 <div style={{fontSize:10,color:C.text,marginBottom:3}}>{t("Write for silence")}</div>
-                <div style={{fontSize:10,color:C.muted,lineHeight:1.5}}>{sound.note}</div>
+                <div style={{fontSize:10,color:C.muted,lineHeight:1.5}}>{t(sound.note)}</div>
               </div>
             )}
           </div>
@@ -365,7 +365,7 @@ Return ONLY a JSON array of 5 short phrases, 1-3 words each, describing the SOUN
                       <select value={s.shotType} onChange={e=>setShot(s.id,{shotType:e.target.value})}
                         style={{fontSize:9,padding:"2px 6px",borderRadius:20,border:`0.5px solid ${C.border}`,background:C.surface,color:s.shotType?C.text:C.muted,cursor:"pointer",outline:"none"}}>
                         <option value="">{t("shot type")}</option>
-                        {SHOT_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+                        {SHOT_TYPES.map(x=><option key={x} value={x}>{t(x)}</option>)}
                       </select>
                       <input value={s.seconds} onChange={e=>setShot(s.id,{seconds:e.target.value.replace(/[^\d.]/g,"")})}
                         placeholder={t("secs")} style={{width:44,fontSize:9,padding:"3px 6px",borderRadius:20,border:`0.5px solid ${C.border}`,background:C.surface,color:C.text,outline:"none",textAlign:"center"}}/>
@@ -397,7 +397,7 @@ Return ONLY a JSON array of 5 short phrases, 1-3 words each, describing the SOUN
                       <span style={{color:s.kind==="visual"?C.muted:talentColor(s.talentId)}}>
                         {s.kind==="visual"?"B-roll":(talentOf(s.talentId)?.name||"talent TBC")}
                       </span>
-                      {" · "}{s.shotType||"shot type TBC"}{s.seconds?` · ~${s.seconds}s`:""}
+                      {" · "}{s.shotType?t(s.shotType):t("shot type TBC")}{s.seconds?` · ~${s.seconds}s`:""}
                     </div>
                   ))}
                 </div>

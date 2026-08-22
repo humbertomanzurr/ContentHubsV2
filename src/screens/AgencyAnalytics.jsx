@@ -39,8 +39,8 @@ function ClientAnalytics({client,videos,month,onBack,onOpenPipeline}){
         {note&&<div style={{fontSize:10,color:C.muted,marginBottom:10,lineHeight:1.5}}>{note}</div>}
         <div style={{display:"flex",flexDirection:"column",gap:7}}>
           {rows.map(r=>(
-            <div key={r.key} style={{display:"flex",alignItems:"center",gap:9}}>
-              <span style={{fontSize:11,color:C.text,width:104,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.key}</span>
+            <div key={t(r.key)} style={{display:"flex",alignItems:"center",gap:9}}>
+              <span style={{fontSize:11,color:C.text,width:104,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t(r.key)}</span>
               <div style={{flex:1,height:7,background:C.light,borderRadius:4,overflow:"hidden"}}>
                 <div style={{width:`${Math.round(r.typical/max*100)}%`,height:"100%",background:r.n<3?color+"55":color,borderRadius:4}}/>
               </div>
@@ -60,7 +60,7 @@ function ClientAnalytics({client,videos,month,onBack,onOpenPipeline}){
       </div>
       <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:3}}>{fmt(v.views||0)}</div>
       <div style={{fontSize:10,color:C.muted}}>
-        {v.hook?`${v.hook} hook`:"no hook tagged"}{v.format?` · ${v.format}`:""}
+        {v.hook?`${t(v.hook)} hook`:"no hook tagged"}{v.format?` · ${v.format}`:""}
         {eng(v)!==null?` · ${Math.round(eng(v)*10)/10}% engagement`:""}
       </div>
     </div>
