@@ -5,12 +5,12 @@ import { createWorkspace, getNotes, getWorkspaceMember, sbDelete, sbGetWhere, sb
 import { AgencyAnalytics } from "./AgencyAnalytics";
 import { AttachVideoModal, NotesPanel, ReviewRoom } from "./AgencyReview";
 import { AddVideoModal, GoalModal, MetricsModal } from "./Modals";
-import { CampaignCreator } from "./Campaigns";
 import { ScriptDocument } from "./Script";
 import { ShootPlanner } from "./Shoot";
 import { AIBoxIcon, BRAND, Btn, C, Card, Logo, PlatformIcon, inp, sh, shMd } from "../ui/theme";
 import { getLang, setLang, t } from "../lib/i18n";
 import { SettingsPage } from "./Settings";
+import { CreatorHub } from "./Creators";
 
 function AgencyOnboarding({user,onComplete}){
   const[step,setStep]=useState(0);
@@ -856,73 +856,6 @@ function AgencyClientPipeline({client,videos,target,month,workspaceId,userId,use
 // Agency level answers "who needs attention". Client level answers "what's working".
 // Every derived figure carries its n, and thin channels collapse rather than lie.
 
-function AgencyBrainstorm({clients,videos,userId,month,onSendToPipeline}){
-  const[clientId,setClientId]=useState(clients.length===1?clients[0].id:null);
-  const client=clients.find(c=>c.id===clientId)||null;
-
-  if(clients.length===0)return(
-    <Card><div style={{textAlign:"center",padding:"48px 20px"}}>
-      <div style={{fontSize:15,fontWeight:600,color:C.text,marginBottom:6}}>{t("No clients yet")}</div>
-      <div style={{fontSize:13,color:C.muted}}>Add a client before brainstorming — every campaign belongs to one.</div>
-    </div></Card>
-  );
-
-  if(!client)return(
-    <div>
-      <Card pad={0} style={{marginBottom:16,overflow:"hidden"}}>
-        <div style={{display:"flex",height:3}}>
-          {[BRAND.red,BRAND.yellow,BRAND.blue,BRAND.green].map((c,i)=><div key={i} style={{flex:1,background:c}}/>)}
-        </div>
-        <div style={{padding:"18px 20px 20px"}}>
-          <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>{t("Brainstorm")}</div>
-          <div style={{fontSize:17,fontWeight:600,color:C.text,letterSpacing:-0.2,marginBottom:4}}>{t("Who are we creating for?")}</div>
-          <div style={{fontSize:12,color:C.muted,lineHeight:1.55}}>Pick a client — their brand and audience shape what comes back.</div>
-        </div>
-      </Card>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
-        {clients.map(c=>{
-          const n=videos.filter(v=>v.clientId===c.id).length;
-          return(
-            <div key={c.id} onClick={()=>setClientId(c.id)}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,cursor:"pointer",transition:"border-color .15s"}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor=C.accent}
-              onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-              <div style={{width:30,height:30,borderRadius:8,background:C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>{c.emoji||"🏢"}</div>
-              <div style={{minWidth:0,flex:1}}>
-                <div style={{fontSize:13,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
-                <div style={{fontSize:10,color:C.muted}}>{n} video{n===1?"":"s"}</div>
-              </div>
-              <span style={{fontSize:11,color:C.muted}}>→</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
-  // The client profile stands in for the business profile the tool expects.
-  let cp={};
-  try{cp=typeof client.client_profile==="string"?JSON.parse(client.client_profile||"{}"):(client.client_profile||{});}catch(e){cp={};}
-  const bp={businessName:client.name,whatYouDo:cp.whatTheyDo||"",audience:cp.audience||"",goal:cp.goal||"",tone:cp.tone||""};
-
-  return(
-    <div>
-      <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:14}}>
-        <div style={{width:26,height:26,borderRadius:7,background:C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>{client.emoji||"🏢"}</div>
-        <div style={{fontSize:13,fontWeight:600,color:C.text}}>{client.name}</div>
-        {clients.length>1&&<button onClick={()=>setClientId(null)} style={{marginLeft:"auto",padding:"5px 11px",border:`0.5px solid ${C.border}`,borderRadius:7,background:C.surface,cursor:"pointer",fontSize:11,color:C.muted}}>{t("Switch client")}</button>}
-      </div>
-      <CampaignCreator
-        key={client.id}
-        userId={userId}
-        businessProfile={bp}
-        videos={videos.filter(v=>v.clientId===client.id)}
-        onSendToPipeline={ideas=>onSendToPipeline(client.id,ideas)}
-      />
-    </div>
-  );
-}
-
 function AgencyApp({user,profile,onLogout}){
   const[clientError,setClientError]=useState(null);
   const[clients,setClients]=useState([]);
@@ -1071,7 +1004,7 @@ function AgencyApp({user,profile,onLogout}){
           {selectedClient&&<div style={{display:"flex",alignItems:"center",gap:6,marginLeft:8}}><span style={{color:C.muted,fontSize:12}}>›</span><span style={{fontSize:13,fontWeight:600,color:C.text}}>{selectedClient.emoji} {selectedClient.name}</span></div>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:3}}>
-          {[["dashboard","Dashboard"],["brainstorm","Brainstorm"],["analytics","Analytics"]].map(([id,label])=>(
+          {[["dashboard","Dashboard"],["creators","Creators"],["analytics","Analytics"]].map(([id,label])=>(
             <button key={id} onClick={()=>{setPage(id);setSelectedClient(null);}}
               style={{padding:"5px 12px",border:"none",cursor:"pointer",fontSize:12,fontWeight:page===id&&!selectedClient?600:400,color:page===id&&!selectedClient?C.text:C.muted,background:page===id&&!selectedClient?C.light:"transparent",borderRadius:7}}>{t(label)}</button>
           ))}
@@ -1122,8 +1055,8 @@ function AgencyApp({user,profile,onLogout}){
           ?<AgencyAnalytics clients={clients} videos={videos} targets={targets} month={month} onMonthChange={setMonth} onOpenClient={c=>setSelectedClient(c)}/>
           :page==="settings"
           ?<SettingsPage workspaceId={wsId} wsName={wsName} user={user} profile={profile} tab={settingsTab} onTab={setSettingsTab} clients={clients} onReload={load}/>
-          :page==="brainstorm"
-          ?<AgencyBrainstorm clients={clients} videos={videos} userId={user.id} month={month} onSendToPipeline={(clientId,ideas)=>{ideas.forEach(v=>addVideo({...v,clientId}));}}/>
+          :page==="creators"
+          ?<CreatorHub workspaceId={wsId} clients={clients}/>
           :<AgencyDashboard clientError={clientError} clients={clients} videos={videos} targets={targets} month={month} onMonthChange={setMonth} onSelectClient={c=>{setSelectedClient(c);}} onAddClient={addClient} onSetTarget={setTarget} onReschedule={reschedule} workspaceId={wsId} onReloadTargets={load} videoError={videoError}/>
         }
       </div>
@@ -1133,4 +1066,4 @@ function AgencyApp({user,profile,onLogout}){
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 
-export { AgencyApp, AgencyBrainstorm, AgencyClientPipeline, AgencyDashboard, AgencyOnboarding, ClientProfileSetup };
+export { AgencyApp, AgencyClientPipeline, AgencyDashboard, AgencyOnboarding, ClientProfileSetup };
