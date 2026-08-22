@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
-import { GENERIC_INSIGHTS, POWER_WORDS, SCRIPT_MOVES, SCRIPT_MOVES_MORE } from "../data/constants";
+import { GENERIC_INSIGHTS, SCRIPT_MOVES, SCRIPT_MOVES_MORE } from "../data/constants";
 import { BRAND, C, Logo } from "../ui/theme";
-import { t } from "../lib/i18n";
+import { example, t } from "../lib/i18n";
 
 function ScriptDocument({card,analytics,onSave,onClose}){
   const[sections,setSections]=useState(()=>{
@@ -144,6 +144,14 @@ function ScriptDocument({card,analytics,onSave,onClose}){
                     </div>
                     {open&&(
                       <div style={{padding:"0 10px 10px 21px"}}>
+                        {example(m.move)&&(
+                          <>
+                            <div style={{fontSize:9,color:C.muted,marginBottom:3}}>{t("Like this:")}</div>
+                            <div style={{fontSize:11,color:C.text,lineHeight:1.5,background:C.light,borderRadius:6,padding:"6px 8px",marginBottom:8,fontStyle:"italic"}}>
+                              {example(m.move)}
+                            </div>
+                          </>
+                        )}
                         <div style={{fontSize:11,color:C.text,lineHeight:1.55,marginBottom:7}}>{t(m.ask)}</div>
                         <div style={{fontSize:10,color:C.muted,lineHeight:1.5,paddingLeft:8,borderLeft:`2px solid ${secColor}40`}}>{t(m.push)}</div>
                       </div>
@@ -151,20 +159,6 @@ function ScriptDocument({card,analytics,onSave,onClose}){
                   </div>
                 );
               })}
-            </div>
-            <div style={{borderTop:`0.5px solid ${C.border}`,padding:"9px 10px 11px",flexShrink:0}}>
-              <div style={{fontSize:9,fontWeight:500,letterSpacing:1,textTransform:"uppercase",color:C.muted,marginBottom:6}}>{t("Power words")}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                {POWER_WORDS.map((w,i)=>(
-                  <span key={i} onClick={()=>insertElement(w)}
-                    style={{fontSize:10,padding:"3px 7px",borderRadius:20,border:`0.5px solid ${C.border}`,background:C.surface,color:C.muted,cursor:"pointer",transition:"all .15s"}}
-                    onMouseEnter={e=>{e.currentTarget.style.borderColor=secColor;e.currentTarget.style.color=secColor;}}
-                    onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.muted;}}>
-                    {w}
-                  </span>
-                ))}
-              </div>
-              <div style={{fontSize:9,color:C.muted,marginTop:6,lineHeight:1.4}}>{t("Click to add to "+focusLabel.toLowerCase())}</div>
             </div>
           </div>
 
