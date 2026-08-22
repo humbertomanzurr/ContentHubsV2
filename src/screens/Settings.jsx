@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { getLang, setLang, t } from "../lib/i18n";
-import { sbGet, sbInsertX, sbSignUp, sbUpdate, sbUpsert } from "../lib/supabase";
+import { sbDelete, sbGet, sbInsertX, sbSignUp, sbUpdate, sbUpsert } from "../lib/supabase";
 import { BRAND, Btn, C, Card, inp } from "../ui/theme";
+
+const EMOJIS=["🏪","👗","💪","💳","🚗","🏢","🍺","🍽️","❤️","💻","🏠","🎬","⭐","🔥","💡","🎯","🚀","💎","🌟","🌿","🎪","📱"];
 
 const ROLES=[
   {id:"admin",  label:"Admin",   desc:"Sees every client, can publish and approve."},
@@ -15,6 +17,8 @@ function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReloa
   const[nameEdit,setNameEdit]=useState(profile?.name||"");
   const[clientEdits,setClientEdits]=useState({});
   const[note,setNote]=useState(null);
+  const[emojiFor,setEmojiFor]=useState(null);
+  const[delFor,setDelFor]=useState(null);
   useEffect(()=>{setWsEdit(wsName||"");},[wsName]);
   const[form,setForm]=useState({name:"",email:"",password:"",role:"member"});
   const[msg,setMsg]=useState(null);
@@ -150,15 +154,43 @@ function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReloa
               const val=clientEdits[c.id]!==undefined?clientEdits[c.id]:c.name;
               const dirty=val.trim()&&val.trim()!==c.name;
               return(
-                <div key={c.id} style={{display:"flex",alignItems:"center",gap:9,background:C.light,borderRadius:8,padding:"8px 10px"}}>
-                  <span style={{fontSize:15,flexShrink:0}}>{c.emoji||"🏢"}</span>
-                  <input value={val} onChange={e=>setClientEdits(p2=>({...p2,[c.id]:e.target.value}))}
-                    style={{...inp,flex:1,fontSize:12,padding:"6px 9px",background:C.surface}}/>
-                  <button disabled={!dirty}
-                    onClick={async()=>{await sbUpdate("agency_clients","id",c.id,{name:val.trim()});setNote({ok:true,text:t("Saved ✓")});onReload&&onReload();}}
-                    style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${dirty?C.text:C.border}`,background:dirty?C.text:C.surface,color:dirty?"#FFF":C.muted,cursor:dirty?"pointer":"not-allowed",fontSize:11,fontWeight:600,flexShrink:0}}>
-                    {t("Save")}
-                  </button>
+                <div key={c.id} style={{background:C.light,borderRadius:8,padding:"9px 11px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:9}}>
+                    <button onClick={()=>setEmojiFor(emojiFor===c.id?null:c.id)} title={t("Change emoji")}
+                      style={{fontSize:16,background:C.surface,border:`1px solid ${emojiFor===c.id?C.text:C.border}`,borderRadius:7,cursor:"pointer",padding:"3px 7px",flexShrink:0}}>
+                      {c.emoji||"🏢"}
+                    </button>
+                    <input value={val} onChange={e=>setClientEdits(p2=>({...p2,[c.id]:e.target.value}))}
+                      style={{...inp,flex:1,fontSize:12,padding:"6px 9px",background:C.surface}}/>
+                    <button disabled={!dirty}
+                      onClick={async()=>{await sbUpdate("agency_clients","id",c.id,{name:val.trim()});setNote({ok:true,text:t("Saved ✓")});onReload&&onReload();}}
+                      style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${dirty?C.text:C.border}`,background:dirty?C.text:C.surface,color:dirty?"#FFF":C.muted,cursor:dirty?"pointer":"not-allowed",fontSize:11,fontWeight:600,flexShrink:0}}>
+                      {t("Save")}
+                    </button>
+                    <button onClick={()=>setDelFor(c.id)}
+                      style={{padding:"6px 9px",borderRadius:7,border:`1px solid ${C.border}`,background:C.surface,color:C.muted,cursor:"pointer",fontSize:11,flexShrink:0}}>
+                      {t("Delete")}
+                    </button>
+                  </div>
+                  {emojiFor===c.id&&(
+                    <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:9}}>
+                      {EMOJIS.map(e=>(
+                        <button key={e} onClick={async()=>{await sbUpdate("agency_clients","id",c.id,{emoji:e});setEmojiFor(null);setNote({ok:true,text:t("Saved ✓")});onReload&&onReload();}}
+                          style={{fontSize:17,padding:"3px 6px",border:`1px solid ${c.emoji===e?C.text:C.border}`,borderRadius:7,cursor:"pointer",background:C.surface}}>{e}</button>
+                      ))}
+                    </div>
+                  )}
+                  {delFor===c.id&&(
+                    <div style={{marginTop:9,background:"#FEF2F2",border:`1px solid ${C.red}30`,borderRadius:7,padding:"9px 11px"}}>
+                      <div style={{fontSize:12,color:C.red,fontWeight:600,marginBottom:3}}>{t("Delete this client?")}</div>
+                      <div style={{fontSize:11,color:C.muted,lineHeight:1.5,marginBottom:9}}>{t("This removes the client and everything in their pipeline.")}</div>
+                      <div style={{display:"flex",gap:7}}>
+                        <button onClick={()=>setDelFor(null)} style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${C.border}`,background:C.surface,cursor:"pointer",fontSize:11,color:C.text}}>{t("Cancel")}</button>
+                        <button onClick={async()=>{await sbDelete("agency_clients","id",c.id);setDelFor(null);setNote({ok:true,text:t("Saved ✓")});onReload&&onReload();}}
+                          style={{padding:"6px 12px",borderRadius:7,border:"none",background:C.red,color:"#FFF",cursor:"pointer",fontSize:11,fontWeight:600}}>{t("Yes, delete")}</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

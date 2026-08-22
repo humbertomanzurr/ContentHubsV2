@@ -15,6 +15,7 @@ import { SettingsPage } from "./Settings";
 function AgencyOnboarding({user,onComplete}){
   const[step,setStep]=useState(0);
   const[wsName,setWsName]=useState("");
+  const[videoError,setVideoError]=useState(null);
   const[loading,setLoading]=useState(false);
 
   const finish=async()=>{
@@ -588,7 +589,7 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
 // second. Drive/YouTube embeds are cross-origin — the browser will not expose
 // their playhead — so those get a manual timestamp field instead.
 
-function AgencyClientPipeline({client,videos,target,month,workspaceId,userId,userName,onAddVideo,onMoveVideo,onMetrics,onDeleteVideo,onSetTarget,onSaveScript,onSaveShoot,onBack}){
+function AgencyClientPipeline({client,videos,target,month,workspaceId,userId,userName,onAddVideo,onMoveVideo,onMetrics,onDeleteVideo,onSetTarget,onSaveScript,onSaveShoot,videoError,onBack}){
   const[showAdd,setShowAdd]=useState(false);
   const[showGoal,setShowGoal]=useState(false);
   const[metricsVid,setMetricsVid]=useState(null);
@@ -829,6 +830,12 @@ function AgencyClientPipeline({client,videos,target,month,workspaceId,userId,use
       )}
       {overrideVid&&(<div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999,fontFamily:"system-ui"}}><div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 8px 32px rgba(0,0,0,.2)",width:"min(380px,95vw)",padding:26}}><div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:6}}>📊 Add metrics early</div><div style={{fontSize:13,color:C.muted,marginBottom:16,lineHeight:1.5}}>If you already have the numbers, go ahead.</div><div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn onClick={()=>setOverrideVid(null)}>{t("Cancel")}</Btn><button onClick={()=>{setMetricsVid(overrideVid);setOverrideVid(null);}} style={{padding:"8px 16px",background:C.text,color:"#FFF",border:"none",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:700}}>Add metrics now →</button></div></div></div>)}
       {metricsVid&&<MetricsModal video={metricsVid} onSave={m=>{onMetrics(metricsVid.id,m);setMetricsVid(null);}} onClose={()=>setMetricsVid(null)}/>}
+      {videoError&&(
+        <div style={{background:"#FEF2F2",border:`1px solid ${C.red}35`,borderRadius:10,padding:"11px 14px",marginBottom:14}}>
+          <div style={{fontSize:12,fontWeight:600,color:C.red,marginBottom:3}}>{t("That video didn't save")}</div>
+          <div style={{fontSize:11,color:C.muted,lineHeight:1.55,wordBreak:"break-word"}}>{videoError}</div>
+        </div>
+      )}
       {attachVid&&<AttachVideoModal video={attachVid} onClose={()=>setAttachVid(null)}
         onSave={url=>onMoveVideo(attachVid.id,"review",undefined,{videoUrl:url})}/>}
       {reviewVid&&<ReviewRoom video={(videos||[]).find(x=>x.id===reviewVid.id)||reviewVid} workspaceId={workspaceId} userId={userId} userName={userName}
@@ -927,6 +934,7 @@ function AgencyApp({user,profile,onLogout}){
   const[menuOpen,setMenuOpen]=useState(false);
   const[settingsTab,setSettingsTab]=useState("users");
   const[wsName,setWsName]=useState("");
+  const[videoError,setVideoError]=useState(null);
   const[loading,setLoading]=useState(true);
   const[needsOnboarding,setNeedsOnboarding]=useState(false);
   const[wsId,setWsId]=useState(null);
@@ -987,9 +995,16 @@ function AgencyApp({user,profile,onLogout}){
   },[wsId,load]);
 
   const addVideo=useCallback(async(v)=>{
-    const newV={id:v.id,clientId:v.clientId,workspaceId:wsId,title:v.title,platform:v.platform||"TikTok",stage:"idea",targetDate:v.targetDate||null,publishDate:null,url:"",hook:"",format:"",cta:"",views:0,likes:0,comments:0,shares:0,saves:0,paraTi:null,siguiendo:null,busqueda:null,metricsAdded:false,script:"",shotList:"",editAdvice:"",month:v.month||month,createdAt:new Date().toISOString()};
+    const newV={id:v.id,clientId:v.clientId,workspaceId:wsId,title:v.title,platform:v.platform||"TikTok",stage:"idea",targetDate:v.targetDate||null,publishDate:null,url:"",hook:"",format:"",cta:"",views:0,likes:0,comments:0,shares:0,saves:0,paraTi:null,siguiendo:null,busqueda:null,metricsAdded:false,script:"",shootPlan:"",month:v.month||month,createdAt:new Date().toISOString()};
     setVideos(prev=>[newV,...prev]);
-    await sbInsert("agency_videos",{id:v.id,workspace_id:wsId,client_id:v.clientId,title:v.title,platform:v.platform||"TikTok",stage:"idea",target_date:v.targetDate||null,publish_date:null,url:"",hook:"",format:"",cta:"",views:0,likes:0,comments:0,shares:0,saves:0,para_ti:null,siguiendo:null,busqueda:null,metrics_added:false,script:"",shot_list:"",edit_advice:"",month:v.month||month,created_at:new Date().toISOString()});
+    const res=await sbInsertX("agency_videos",{id:v.id,workspace_id:wsId,client_id:v.clientId,title:v.title,platform:v.platform||"TikTok",stage:"idea",target_date:v.targetDate||null,publish_date:null,url:"",hook:"",format:"",cta:"",views:0,likes:0,comments:0,shares:0,saves:0,para_ti:null,siguiendo:null,busqueda:null,metrics_added:false,script:"",shoot_plan:"",month:v.month||month,created_at:new Date().toISOString()});
+    if(!res.ok){
+      // Roll the card back rather than letting load() silently erase it.
+      setVideos(prev=>prev.filter(x=>x.id!==v.id));
+      setVideoError(res.error||"No se pudo guardar el video");
+      return;
+    }
+    setVideoError(null);
     await load();
   },[wsId,month,load]);
 
@@ -1102,14 +1117,14 @@ function AgencyApp({user,profile,onLogout}){
       </div>
       <div style={{flex:1,overflowY:"auto",padding:20}}>
         {selectedClient
-          ?<AgencyClientPipeline client={selectedClient} videos={clientVids} target={clientTarget} month={month} workspaceId={wsId} userId={user.id} userName={profile?.name||user.email} onAddVideo={addVideo} onMoveVideo={moveVideo} onMetrics={saveMetrics} onDeleteVideo={deleteVideo} onSetTarget={setTarget} onSaveScript={saveScript} onSaveShoot={saveShoot} onBack={()=>setSelectedClient(null)}/>
+          ?<AgencyClientPipeline client={selectedClient} videos={clientVids} target={clientTarget} month={month} workspaceId={wsId} userId={user.id} userName={profile?.name||user.email} onAddVideo={addVideo} onMoveVideo={moveVideo} onMetrics={saveMetrics} onDeleteVideo={deleteVideo} onSetTarget={setTarget} onSaveScript={saveScript} onSaveShoot={saveShoot} videoError={videoError} onBack={()=>setSelectedClient(null)}/>
           :page==="analytics"
           ?<AgencyAnalytics clients={clients} videos={videos} targets={targets} month={month} onMonthChange={setMonth} onOpenClient={c=>setSelectedClient(c)}/>
           :page==="settings"
           ?<SettingsPage workspaceId={wsId} wsName={wsName} user={user} profile={profile} tab={settingsTab} onTab={setSettingsTab} clients={clients} onReload={load}/>
           :page==="brainstorm"
           ?<AgencyBrainstorm clients={clients} videos={videos} userId={user.id} month={month} onSendToPipeline={(clientId,ideas)=>{ideas.forEach(v=>addVideo({...v,clientId}));}}/>
-          :<AgencyDashboard clientError={clientError} clients={clients} videos={videos} targets={targets} month={month} onMonthChange={setMonth} onSelectClient={c=>{setSelectedClient(c);}} onAddClient={addClient} onSetTarget={setTarget} onReschedule={reschedule} workspaceId={wsId} onReloadTargets={load}/>
+          :<AgencyDashboard clientError={clientError} clients={clients} videos={videos} targets={targets} month={month} onMonthChange={setMonth} onSelectClient={c=>{setSelectedClient(c);}} onAddClient={addClient} onSetTarget={setTarget} onReschedule={reschedule} workspaceId={wsId} onReloadTargets={load} videoError={videoError}/>
         }
       </div>
     </div>
