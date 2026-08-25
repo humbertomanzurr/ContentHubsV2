@@ -70,7 +70,7 @@ function CreatorHub({workspaceId,clients}){
       setMembers(all.flat());
     });
   };
-  useEffect(load,[workspaceId]);
+  useEffect(()=>{load();},[workspaceId]);
 
   const clientName=id=>(clients||[]).find(c=>c.id===id)?.name||"";
   const clientEmoji=id=>(clients||[]).find(c=>c.id===id)?.emoji||"🏢";
