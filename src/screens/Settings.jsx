@@ -36,7 +36,7 @@ function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReloa
     profs.forEach(p2=>{byId[p2.id]=p2;});
     setMembers(rows.map(r=>({...r,profile:byId[r.user_id]||null})));
   };
-  useEffect(load,[workspaceId]);
+  useEffect(()=>{load();},[workspaceId]);
 
   const createUser=async()=>{
     if(busy)return;
