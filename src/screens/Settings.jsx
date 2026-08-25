@@ -19,14 +19,22 @@ function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReloa
   const[note,setNote]=useState(null);
   const[emojiFor,setEmojiFor]=useState(null);
   const[delFor,setDelFor]=useState(null);
+  const[menuId,setMenuId]=useState(null);
+  const[editId,setEditId]=useState(null);
+  const[editForm,setEditForm]=useState({name:"",role:"member"});
   useEffect(()=>{setWsEdit(wsName||"");},[wsName]);
   const[form,setForm]=useState({name:"",email:"",password:"",role:"member"});
   const[msg,setMsg]=useState(null);
   const[busy,setBusy]=useState(false);
 
-  const load=()=>{
+  const load=async()=>{
     if(!workspaceId)return;
-    sbGet("workspace_members",`&workspace_id=eq.${workspaceId}`).then(rows=>setMembers(rows||[]));
+    const rows=await sbGet("workspace_members",`&workspace_id=eq.${workspaceId}`)||[];
+    // Names live in profiles, so join them here — a list of uuids is unusable.
+    const profs=await sbGet("profiles","")||[];
+    const byId={};
+    profs.forEach(p2=>{byId[p2.id]=p2;});
+    setMembers(rows.map(r=>({...r,profile:byId[r.user_id]||null})));
   };
   useEffect(load,[workspaceId]);
 
@@ -122,24 +130,107 @@ function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReloa
             </div>
           </Card>
 
-          <Card>
-            <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>
-              {t("Team")} · {members.length}
+          <Card pad={0} style={{overflow:"hidden"}}>
+            <div style={{padding:"14px 16px 12px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>{t("Team")}</div>
+                <div style={{fontSize:15,fontWeight:600,color:C.text}}>{members.length} {members.length===1?t("person"):t("people")}</div>
+              </div>
+              {msg&&<span style={{fontSize:11,color:msg.ok?BRAND.green:C.red}}>{msg.text}</span>}
             </div>
-            {members.length===0&&<div style={{fontSize:12,color:C.muted}}>{t("Nobody else yet.")}</div>}
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {members.map(m=>(
-                <div key={m.user_id} style={{display:"flex",alignItems:"center",gap:10,background:C.light,borderRadius:8,padding:"9px 11px"}}>
-                  <div style={{width:24,height:24,borderRadius:7,background:C.surface,border:`0.5px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:600,color:C.muted}}>
-                    {(m.user_id||"?").slice(0,1).toUpperCase()}
-                  </div>
-                  <div style={{flex:1,minWidth:0,fontSize:11,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                    {m.user_id===user.id?(profile?.name||user.email):m.user_id}
-                  </div>
-                  <span style={{fontSize:10,color:C.muted,background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:20,padding:"2px 8px"}}>{t(m.role||"member")}</span>
+
+            {members.length===0?(
+              <div style={{padding:"20px 16px",fontSize:12,color:C.muted}}>{t("Nobody else yet.")}</div>
+            ):(
+              <>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 150px 44px",gap:10,padding:"8px 16px",background:C.light,borderTop:`0.5px solid ${C.border}`,borderBottom:`0.5px solid ${C.border}`}}>
+                  <div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:.5,textTransform:"uppercase"}}>{t("User")}</div>
+                  <div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:.5,textTransform:"uppercase"}}>{t("Access")}</div>
+                  <div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:.5,textTransform:"uppercase",textAlign:"right"}}>{t("Actions")}</div>
                 </div>
-              ))}
-            </div>
+                {members.map(m=>{
+                  const me=m.user_id===user.id;
+                  const nm=m.profile?.name||(me?(profile?.name||user.email):"—");
+                  const em=m.profile?.email||(me?user.email:"");
+                  const editing=editId===m.user_id;
+                  return(
+                    <div key={m.user_id} style={{borderBottom:`0.5px solid ${C.border}`}}>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 150px 44px",gap:10,padding:"11px 16px",alignItems:"center"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                          <div style={{width:28,height:28,borderRadius:"50%",background:C.light,border:`0.5px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:C.muted,flexShrink:0}}>
+                            {(nm||"?").slice(0,1).toUpperCase()}
+                          </div>
+                          <div style={{minWidth:0}}>
+                            <div style={{fontSize:12,fontWeight:500,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                              {nm}{me&&<span style={{color:C.muted,fontWeight:400}}> ({t("you")})</span>}
+                            </div>
+                            {em&&<div style={{fontSize:11,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{em}</div>}
+                          </div>
+                        </div>
+                        <div>
+                          <span style={{fontSize:10,fontWeight:600,color:m.role==="admin"?BRAND.blue:C.muted,background:m.role==="admin"?BRAND.blue+"14":C.light,border:`0.5px solid ${m.role==="admin"?BRAND.blue+"40":C.border}`,borderRadius:20,padding:"3px 9px",whiteSpace:"nowrap"}}>
+                            {t((ROLES.find(r=>r.id===(m.role||"member"))||{}).label||"Member")}
+                          </span>
+                        </div>
+                        <div style={{textAlign:"right",position:"relative"}}>
+                          <button onClick={()=>setMenuId(menuId===m.user_id?null:m.user_id)}
+                            style={{background:"none",border:"none",cursor:"pointer",fontSize:15,color:C.muted,padding:"2px 6px",lineHeight:1}}>⋯</button>
+                          {menuId===m.user_id&&(
+                            <>
+                              <div onClick={()=>setMenuId(null)} style={{position:"fixed",inset:0,zIndex:900}}/>
+                              <div style={{position:"absolute",right:0,top:"100%",zIndex:901,width:170,background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,boxShadow:"0 10px 28px rgba(0,0,0,.14)",padding:"5px 0",textAlign:"left"}}>
+                                <button onClick={()=>{setEditId(m.user_id);setEditForm({name:nm,role:m.role||"member"});setMenuId(null);}}
+                                  style={{display:"block",width:"100%",textAlign:"left",padding:"8px 12px",border:"none",background:"transparent",cursor:"pointer",fontSize:12,color:C.text}}
+                                  onMouseEnter={e=>e.currentTarget.style.background=C.light}
+                                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{t("Edit")}</button>
+                                {!me&&(
+                                  <button onClick={async()=>{
+                                      setMenuId(null);
+                                      await sbDelete("workspace_members","user_id",m.user_id);
+                                      setMsg({ok:true,text:t("Access removed")});load();
+                                    }}
+                                    style={{display:"block",width:"100%",textAlign:"left",padding:"8px 12px",border:"none",background:"transparent",cursor:"pointer",fontSize:12,color:C.red}}
+                                    onMouseEnter={e=>e.currentTarget.style.background=C.light}
+                                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{t("Remove access")}</button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {editing&&(
+                        <div style={{padding:"0 16px 14px 54px",background:C.light}}>
+                          <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end",paddingTop:11}}>
+                            <div style={{flex:"1 1 180px"}}>
+                              <div style={{fontSize:10,color:C.muted,marginBottom:4,fontWeight:500}}>{t("Display name")}</div>
+                              <input value={editForm.name} onChange={e=>setEditForm(p2=>({...p2,name:e.target.value}))}
+                                style={{...inp,fontSize:12,padding:"7px 10px",background:C.surface}}/>
+                            </div>
+                            <div style={{flex:"0 0 150px"}}>
+                              <div style={{fontSize:10,color:C.muted,marginBottom:4,fontWeight:500}}>{t("Access")}</div>
+                              <select value={editForm.role} disabled={me}
+                                onChange={e=>setEditForm(p2=>({...p2,role:e.target.value}))}
+                                style={{...inp,fontSize:12,padding:"7px 10px",background:C.surface,cursor:me?"not-allowed":"pointer"}}>
+                                {ROLES.map(r=><option key={r.id} value={r.id}>{t(r.label)}</option>)}
+                              </select>
+                            </div>
+                            <Btn onClick={()=>setEditId(null)}>{t("Cancel")}</Btn>
+                            <Btn primary onClick={async()=>{
+                                if(editForm.name.trim())await sbUpdate("profiles","id",m.user_id,{name:editForm.name.trim()});
+                                if(!me&&editForm.role!==m.role)
+                                  await sbUpsert("workspace_members",[{workspace_id:workspaceId,user_id:m.user_id,role:editForm.role}],"workspace_id,user_id");
+                                setEditId(null);setMsg({ok:true,text:t("Saved ✓")});load();
+                              }}>{t("Save")}</Btn>
+                          </div>
+                          {me&&<div style={{fontSize:10,color:C.muted,marginTop:7}}>{t("You can't change your own access.")}</div>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </Card>
         </>
       )}
