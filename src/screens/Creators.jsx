@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { t } from "../lib/i18n";
 import { uuid } from "../lib/format";
-import { sbDelete, sbGetWhere, sbInsertX, sbUpdate, sbUpsert } from "../lib/supabase";
+import { aiHeaders, sbDelete, sbGetWhere, sbInsertX, sbUpdate, sbUpsert } from "../lib/supabase";
 import { BRAND, Btn, C, Card, PlatformIcon, inp, shMd } from "../ui/theme";
 
 const CREATOR_PLATFORMS=["TikTok","Instagram Reels","YouTube","Facebook"];
@@ -123,7 +123,7 @@ Devuelve SOLO un arreglo JSON, sin markdown:
 [{"handle":"@usuario","platform":"TikTok","profile_url":"https://www.tiktok.com/@usuario","why":"una frase de por qué encaja"}]
 
 Hasta 12 resultados.`;
-      const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
+      const r=await fetch("/api/chat",{method:"POST",headers:aiHeaders(),
         body:JSON.stringify({messages:[{role:"user",content:q}],systemPrompt:sys,useWebSearch:true,maxUses:3})});
       const raw=await r.text();
       let d;try{d=JSON.parse(raw);}catch(e){d={error:raw.slice(0,140)};}

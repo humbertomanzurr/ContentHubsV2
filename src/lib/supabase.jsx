@@ -39,6 +39,17 @@ const _net = (t,op,e) => _note(t,op,0,(e&&e.message)||"Network error");
 
 
 const sbGet = async (t,p="") => { try { const r=await fetch(`${SB_URL}/rest/v1/${t}?select=*${p}`,{headers:_h()}); if(!r.ok){await _bad(t,"select",r);return [];} return await r.json();} catch(e){_net(t,"select",e);return [];} };
+// The /api/chat endpoint spends real money on every call, so it has to know
+// who is asking. This is the same Supabase session token every database
+// request already carries — the endpoint verifies it before doing any work.
+// Logged out, this sends an empty bearer and the endpoint refuses, which is
+// the correct outcome rather than a silent free ride.
+const aiHeaders = () => ({
+  "Content-Type": "application/json",
+  "Authorization": `Bearer ${_token || ""}`,
+});
+
+
 
 const sbGetWhere = async (t,col,val,extra="") => {
   try {
@@ -147,4 +158,4 @@ const getWorkspaceMember = async (userId) => {
 
 // ── AGENCY ONBOARDING ─────────────────────────────────────────────────────────
 
-export { sbLastError, sbGetWhere, sbSessionSync, SB_KEY, SB_URL, _h, _token, addNote, createWorkspace, getNotes, getWorkspaceMember, sbDelete, sbGet, sbGetOne, sbGetSession, sbInsert, sbInsertX, sbSignIn, sbSignOut, sbSignUp, sbUpdate, sbUpsert };
+export { aiHeaders, sbGetWhere, sbSessionSync, SB_KEY, SB_URL, _h, _token, addNote, createWorkspace, getNotes, getWorkspaceMember, sbDelete, sbGet, sbGetOne, sbGetSession, sbInsert, sbInsertX, sbSignIn, sbSignOut, sbSignUp, sbUpdate, sbUpsert, sbLastError };
