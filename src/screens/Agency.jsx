@@ -8,7 +8,7 @@ import { AddVideoModal, GoalModal, MetricsModal } from "./Modals";
 import { ScriptDocument } from "./Script";
 import { ShootPlanner } from "./Shoot";
 import { AIBoxIcon, BRAND, Btn, C, Card, Logo, PlatformIcon, inp, sh, shMd } from "../ui/theme";
-import { getLang, setLang, t } from "../lib/i18n";
+import { locale, getLang, setLang, t } from "../lib/i18n";
 import { SettingsPage } from "./Settings";
 import { CreatorHub } from "./Creators";
 
@@ -243,6 +243,19 @@ function GoalsModal({clients,targets,month,workspaceId,onSaved,onClose}){
   );
 }
 
+
+// Weekday initials for the calendar header, Monday-first to match the grid.
+// Derived from the active locale instead of hardcoded, which is how the old
+// ["MON","TUE",...] array ended up unreachable by the language toggle.
+const WEEKDAYS = () => {
+  const base = new Date(2024, 0, 1); // a Monday
+  return Array.from({length:7}, (_, i) => {
+    const d = new Date(base); d.setDate(base.getDate() + i);
+    return d.toLocaleDateString(locale(), {weekday:"short"})
+            .replace(".","").slice(0,3).toUpperCase();
+  });
+};
+
 function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange,onSelectClient,onAddClient,onSetTarget,onReschedule,workspaceId,onReloadTargets,businessProfile}){
   const[showAddClient,setShowAddClient]=useState(false);
   const[newName,setNewName]=useState("");
@@ -439,7 +452,7 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
         <>
           <Card pad={10} style={{marginBottom:12}}>
             <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
-              {["MON","TUE","WED","THU","FRI","SAT","SUN"].map(d=>(
+              {WEEKDAYS().map(d=>(
                 <div key={d} style={{fontSize:9,color:C.muted,textAlign:"center",letterSpacing:.5}}>{d}</div>
               ))}
             </div>
@@ -461,7 +474,7 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
                     onDrop={e=>onDrop(e,date)}
                     style={{background:C.light,borderRadius:7,padding:5,minHeight:78,border:isToday?`1px solid ${C.accent}`:"1px solid transparent",opacity:weekend&&!list.length?.55:1,transition:"background .15s"}}>
                     <div style={{fontSize:10,color:isToday?C.accent:C.muted,fontWeight:isToday?700:400,marginBottom:3}}>
-                      {dayNum}{isToday?" · today":""}
+                      {dayNum}{isToday?` · ${t("today")}`:""}
                     </div>
                     {mode==="stack"?(
                       <div onClick={()=>setDayOpen(date)} style={{cursor:"pointer"}}>
@@ -530,7 +543,7 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
           style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999,padding:16}}>
           <Card pad={0} style={{width:"min(420px,100%)",maxHeight:"80vh",overflow:"hidden",display:"flex",flexDirection:"column"}}>
             <div style={{padding:"13px 16px",borderBottom:`0.5px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div style={{fontSize:14,fontWeight:600,color:C.text}}>{new Date(dayOpen+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
+              <div style={{fontSize:14,fontWeight:600,color:C.text}}>{new Date(dayOpen+"T12:00:00").toLocaleDateString(locale(),{weekday:"long",month:"long",day:"numeric"})}</div>
               <button onClick={()=>setDayOpen(null)} style={{background:"none",border:"none",color:C.muted,fontSize:20,cursor:"pointer"}}>×</button>
             </div>
             <div style={{padding:12,overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
@@ -699,7 +712,7 @@ function AgencyClientPipeline({client,videos,target,month,workspaceId,userId,use
                 const unlocked=isPub&&daysGone>=7;
                 const hasMet=v.metricsAdded;
                 const lockPct=Math.min(100,Math.round((daysGone/7)*100));
-                const unlockDate=()=>{const d=new Date(v.publishDate||v.createdAt);d.setDate(d.getDate()+7);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"});};
+                const unlockDate=()=>{const d=new Date(v.publishDate||v.createdAt);d.setDate(d.getDate()+7);return d.toLocaleDateString(locale(),{month:"short",day:"numeric"});};
                 const isCf=confirmDel===v.id;
                 const needsRevision=!!v.revision&&(stage.id==="editing"||stage.id==="review");
                 const nCount=noteCounts[v.id]||0;

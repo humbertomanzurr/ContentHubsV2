@@ -3,6 +3,11 @@
 // when the language is ES, and falls back to the key itself otherwise — so a
 // missing translation shows readable English rather than a broken token.
 const ES = {
+  // Calendar & relative time
+  "today":"hoy",
+  "just now":"ahora",
+  "{n}m ago":"hace {n}m",
+  "{n}h ago":"hace {n}h",
   // Auth & shell
   "Sign in":"Iniciar sesión",
   "Email":"Correo",
@@ -776,6 +781,12 @@ const LANGS = { es: ES, en: null };
 let LANG = (()=>{ try{ return localStorage.getItem("ch_lang")||"es"; }catch(e){ return "es"; } })();
 
 const getLang = () => LANG;
+
+// Dates were being formatted with a hardcoded "en-US" in four places, so the
+// Spanish app printed English month and weekday names. Everything that formats
+// a date goes through here now, and follows the same toggle as the strings.
+const LOCALES = { es: "es-MX", en: "en-US" };
+const locale = () => LOCALES[LANG] || "es-MX";
 const setLang = (l) => {
   LANG = (l==="en"||l==="es") ? l : "es";
   try{ localStorage.setItem("ch_lang", LANG); }catch(e){}
@@ -787,4 +798,4 @@ const t = (s) => {
   return (dict && dict[s]) ? dict[s] : s;
 };
 
-export { t, example, getLang, setLang };
+export { t, example, getLang, locale, setLang };

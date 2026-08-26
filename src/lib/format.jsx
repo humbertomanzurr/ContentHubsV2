@@ -1,8 +1,10 @@
+import { locale, t } from "./i18n";
+
 const NOW=new Date();
 
 const curMonth=()=>`${NOW.getFullYear()}-${String(NOW.getMonth()+1).padStart(2,"0")}`;
 
-const monthLabel=m=>{const[y,mo]=m.split("-");return new Date(+y,+mo-1,1).toLocaleString("en-US",{month:"long",year:"numeric"});};
+const monthLabel=m=>{const[y,mo]=m.split("-");return new Date(+y,+mo-1,1).toLocaleString(locale(),{month:"long",year:"numeric"});};
 
 const addMonths=(m,n)=>{const[y,mo]=m.split("-");const d=new Date(+y,+mo-1+n,1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;};
 
@@ -25,11 +27,11 @@ const engRate=v=>v.views>0?(((v.likes+v.comments+v.shares+v.saves)/v.views)*100)
 
 const timeAgo=d=>{
   const m=Math.floor((new Date()-new Date(d))/60000);
-  if(m<1)return"just now";
-  if(m<60)return`${m}m ago`;
+  if(m<1)return t("just now");
+  if(m<60)return t("{n}m ago").replace("{n}",m);
   const h=Math.floor(m/60);
-  if(h<24)return`${h}h ago`;
-  return new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  if(h<24)return t("{n}h ago").replace("{n}",h);
+  return new Date(d).toLocaleDateString(locale(),{month:"short",day:"numeric"});
 };
 
 const fmtTime=sec=>{
