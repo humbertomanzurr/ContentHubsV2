@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef} from "react";
 import { AGENCY_STAGES, CLIENT_QUESTIONS } from "../data/constants";
 import { addMonths, curMonth, daysSince, fmt, monthLabel, uuid } from "../lib/format";
 import { createWorkspace, getNotes, getWorkspaceMember, sbDelete, sbGetWhere, sbInsert, sbInsertX, sbUpdate, sbUpsert } from "../lib/supabase";
@@ -244,6 +244,202 @@ function GoalsModal({clients,targets,month,workspaceId,onSaved,onClose}){
 }
 
 
+
+const STAGE_LABEL={idea:"Brief",production:"Production",editing:"Editing",
+  review:"Ready for Review",approved:"Approved",published:"Published"};
+
+// ── MONTH GRID ────────────────────────────────────────────────────────────────
+// A day cell is ~190px wide and can never fit more than three readable titles,
+// so past that the cell stops listing and starts summarising: how many, which
+// clients, how many are late. Hovering (or clicking, or tabbing to) a busy day
+// opens the full list over the grid.
+function MonthGrid({cells,byDay,colorOf,todayISO,onDrop,onSelectClient,clientName}){
+  const[open,setOpen]=useState(null);      // date string of the expanded day
+  const[hotRow,setHotRow]=useState(null);  // id of the card expanded inside it
+  const tIn=useRef(null), tOut=useRef(null);
+
+  // Hover is an accelerator, not the mechanism — a tablet has no hover at all,
+  // so click opens the same panel and Escape closes it.
+  const enter=date=>{clearTimeout(tOut.current);clearTimeout(tIn.current);
+    tIn.current=setTimeout(()=>{setOpen(date);setHotRow(null);},260);};
+  const leave=()=>{clearTimeout(tIn.current);
+    tOut.current=setTimeout(()=>setOpen(null),180);};
+  const toggle=date=>{clearTimeout(tIn.current);
+    setOpen(o=>o===date?null:date);setHotRow(null);};
+
+  useEffect(()=>{
+    const onKey=e=>{if(e.key==="Escape")setOpen(null);};
+    window.addEventListener("keydown",onKey);
+    return()=>{window.removeEventListener("keydown",onKey);
+      clearTimeout(tIn.current);clearTimeout(tOut.current);};
+  },[]);
+
+  const rows=Math.ceil(cells.length/7);
+
+  return(
+    <Card pad={10} style={{marginBottom:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6,marginBottom:8}}>
+        {WEEKDAYS().map(d=>(
+          <div key={d} style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:.8,paddingLeft:2}}>{d}</div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}}>
+        {cells.map((date,i)=>{
+          if(!date)return <div key={i} style={{minHeight:116}}/>;
+          const list=byDay[date]||[];
+          const dayNum=Number(date.slice(-2));
+          const isToday=date===todayISO;
+          const isPast=date<todayISO;
+          const col=i%7, row=Math.floor(i/7);
+          const weekend=col>=5;
+          const late=isPast?list.filter(v=>v.stage!=="published").length:0;
+          const isOpen=open===date;
+          // Flip from the column and row rather than measuring — the grid is
+          // always seven wide, so this is deterministic and can't mis-measure.
+          const flipX=col>=4, flipY=row>=rows-2;
+
+          return(
+            <div key={date}
+              onMouseEnter={()=>list.length&&enter(date)}
+              onMouseLeave={leave}
+              onClick={()=>list.length&&toggle(date)}
+              onDragOver={e=>{e.preventDefault();e.currentTarget.style.borderColor=C.accent;}}
+              onDragLeave={e=>{e.currentTarget.style.borderColor="";}}
+              onDrop={e=>{e.currentTarget.style.borderColor="";onDrop(e,date);}}
+              style={{position:"relative",background:weekend?C.light:C.surface,
+                border:`1px solid ${isOpen?C.accent:C.border}`,borderRadius:10,padding:7,
+                minHeight:116,display:"flex",flexDirection:"column",gap:4,
+                cursor:list.length?"pointer":"default",
+                boxShadow:isOpen?`0 0 0 3px ${C.accent}1F`:"none",
+                transition:"border-color .15s, box-shadow .15s"}}>
+
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4,minHeight:20}}>
+                {isToday
+                  ?<span style={{background:C.text,color:C.surface,fontWeight:600,fontSize:11.5,borderRadius:20,padding:"2px 8px"}}>{dayNum}</span>
+                  :<span style={{fontSize:12,fontWeight:500,color:C.muted}}>{dayNum}</span>}
+                {late>0&&(
+                  <span style={{fontSize:9.5,fontWeight:700,letterSpacing:.3,color:"#9A6B0F",
+                    background:`${BRAND.yellow}33`,borderRadius:5,padding:"1px 5px"}}>{late} {t("late")}</span>
+                )}
+              </div>
+
+              {list.length<=6
+                ? <DayCards list={list.slice(0,3)} rest={list.length-Math.min(3,list.length)} colorOf={colorOf} isPast={isPast}/>
+                : <DaySummary list={list} colorOf={colorOf} clientName={clientName}/>}
+
+              {isOpen&&(
+                <DayPanel date={date} list={list} colorOf={colorOf} clientName={clientName}
+                  isPast={isPast} flipX={flipX} flipY={flipY}
+                  hotRow={hotRow} setHotRow={setHotRow} onSelectClient={onSelectClient}/>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+// Up to three readable titles, then a countable remainder. The old ladder
+// shrank type to 9px and then dropped titles entirely — the busiest day ended
+// up the least informative cell on the screen.
+function DayCards({list,rest,colorOf,isPast}){
+  return(<>
+    {list.map(v=>{
+      const col=colorOf(v.clientId);
+      return(
+        <div key={v.id} draggable
+          onDragStart={e=>{e.dataTransfer.setData("videoId",v.id);e.currentTarget.style.opacity=".4";}}
+          onDragEnd={e=>{e.currentTarget.style.opacity="1";}}
+          style={{display:"flex",alignItems:"flex-start",gap:6,padding:"5px 7px",borderRadius:7,
+            background:isPast&&v.stage!=="published"?`${BRAND.yellow}22`:C.light,cursor:"grab"}}>
+          <span style={{width:3,alignSelf:"stretch",minHeight:14,borderRadius:2,background:col,flexShrink:0}}/>
+          <span style={{fontSize:11.5,color:C.text,lineHeight:1.35,overflow:"hidden",
+            flex:1,minWidth:0,overflowWrap:"anywhere",hyphens:"none",
+            display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{v.title}</span>
+        </div>
+      );
+    })}
+    {rest>0&&<div style={{fontSize:11,fontWeight:500,color:C.accent,padding:"3px 7px"}}>+{rest} {t("more")}</div>}
+  </>);
+}
+
+// Past six, the useful question stops being "what are these called" and becomes
+// "who is loaded, and is anything late". So the cell answers that instead — and
+// it looks the same at fifty as it does at seven.
+function DaySummary({list,colorOf,clientName}){
+  const counts={};
+  list.forEach(v=>{counts[v.clientId]=(counts[v.clientId]||0)+1;});
+  const ordered=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      <div style={{fontSize:15,fontWeight:600,color:C.text,letterSpacing:-0.2}}>
+        {list.length} <span style={{fontSize:11,fontWeight:400,color:C.muted}}>{t("videos")}</span>
+      </div>
+      <div style={{display:"flex",height:7,borderRadius:4,overflow:"hidden",gap:1.5}}>
+        {ordered.map(([cid,n])=><span key={cid} style={{flex:n,background:colorOf(cid)}}/>)}
+      </div>
+      <div style={{fontSize:10.5,color:C.muted,lineHeight:1.45}}>
+        {ordered.slice(0,2).map(([cid,n])=>`${clientName(cid)} ${n}`).join(" · ")}
+        {ordered.length>2?` · +${ordered.length-2}`:""}
+      </div>
+    </div>
+  );
+}
+
+// The expanded day. It floats over the grid rather than growing inside it —
+// growing would push every row below down, moving what you were aiming at.
+// The per-card detail opens INSIDE this panel: if it floated in a second layer
+// beside the card, moving the pointer toward it would leave the card, close it,
+// and close the layer with it.
+function DayPanel({date,list,colorOf,clientName,isPast,flipX,flipY,hotRow,setHotRow,onSelectClient}){
+  return(
+    <div onClick={e=>e.stopPropagation()}
+      style={{position:"absolute",zIndex:40,width:262,maxHeight:340,overflowY:"auto",
+        background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,
+        boxShadow:"0 4px 12px rgba(0,0,0,.10), 0 18px 44px rgba(0,0,0,.16)",padding:"11px 12px",
+        ...(flipX?{right:"calc(100% + 8px)"}:{left:"calc(100% + 8px)"}),
+        ...(flipY?{bottom:-8}:{top:-8})}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,
+        paddingBottom:8,marginBottom:8,borderBottom:`1px solid ${C.border}`}}>
+        <b style={{fontSize:12.5,fontWeight:600,color:C.text}}>
+          {new Date(date+"T12:00:00").toLocaleDateString(locale(),{day:"numeric",month:"long"})}
+        </b>
+        <span style={{fontSize:11,color:C.muted}}>{list.length} {t("videos")}</span>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+        {list.map(v=>{
+          const on=hotRow===v.id;
+          const overdue=isPast&&v.stage!=="published";
+          return(
+            <div key={v.id} tabIndex={0}
+              onMouseEnter={()=>setHotRow(v.id)}
+              onFocus={()=>setHotRow(v.id)}
+              onClick={()=>onSelectClient(v.clientId)}
+              style={{display:"flex",gap:7,alignItems:"flex-start",padding:"6px 7px",borderRadius:7,
+                background:on?`${C.accent}17`:C.light,cursor:"pointer",transition:"background .12s"}}>
+              <span style={{width:3,alignSelf:"stretch",minHeight:15,borderRadius:2,background:colorOf(v.clientId),flexShrink:0}}/>
+              <div style={{minWidth:0,flex:1}}>
+                <b style={{display:"block",fontSize:11.5,fontWeight:500,color:C.text,lineHeight:1.35}}>{v.title}</b>
+                <div style={{fontSize:10.5,color:C.muted,maxHeight:on?70:0,overflow:"hidden",transition:"max-height .18s ease"}}>
+                  <div style={{marginTop:3}}>{clientName(v.clientId)}{v.editor?` · ${v.editor}`:""}</div>
+                  <div style={{marginTop:3}}>
+                    <span style={{fontSize:9,fontWeight:700,letterSpacing:.3,padding:"1px 6px",borderRadius:20,
+                      color:overdue?"#9A6B0F":C.green,background:overdue?`${BRAND.yellow}33`:`${C.green}22`}}>
+                      {overdue?t("past its date"):t(STAGE_LABEL[v.stage]||v.stage)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
 // Weekday initials for the calendar header, Monday-first to match the grid.
 // Derived from the active locale instead of hardcoded, which is how the old
 // ["MON","TUE",...] array ended up unreachable by the language toggle.
@@ -269,7 +465,15 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
   const[goalsOpen,setGoalsOpen]=useState(false);
   // Colours identify clients across the whole calendar.
   const CLIENT_COLORS=[BRAND.blue,BRAND.green,BRAND.red,BRAND.yellow,C.purple,"#F97316","#0EA5E9","#DB2777"];
-  const colorOf=id=>CLIENT_COLORS[Math.max(0,clients.findIndex(c=>c.id===id))%CLIENT_COLORS.length];
+  // Derived from the id, not from position in the list. The old version indexed
+  // by findIndex, so deleting one client shifted the colour of every client
+  // after it and the whole calendar repainted.
+  const colorOf=id=>{
+    const str=String(id||"");
+    let h=0; for(let i=0;i<str.length;i++)h=(h*31+str.charCodeAt(i))>>>0;
+    return CLIENT_COLORS[h%CLIENT_COLORS.length];
+  };
+  const clientName=id=>(clients.find(c=>c.id===id)||{}).name||"—";
 
   const mVids=videos.filter(v=>v.month===month);
   const agencyPub=mVids.filter(v=>v.stage==="published").length;
@@ -450,61 +654,10 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
         </Card>
       ):calOpen?(
         <>
-          <Card pad={10} style={{marginBottom:12}}>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
-              {WEEKDAYS().map(d=>(
-                <div key={d} style={{fontSize:9,color:C.muted,textAlign:"center",letterSpacing:.5}}>{d}</div>
-              ))}
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
-              {cells.map((date,i)=>{
-                if(!date)return <div key={i} style={{minHeight:78}}/>;
-                const list=byDay[date]||[];
-                const dayNum=Number(date.slice(-2));
-                const isToday=date===todayISO;
-                const isPast=date<todayISO;
-                const weekend=[5,6].includes((i)%7);
-                // Density ladder: full titles when there's room, compact rows when
-                // there isn't, and a colour stack once it's beyond reading.
-                const mode=list.length<=2?"full":list.length<=5?"compact":"stack";
-                return(
-                  <div key={date}
-                    onDragOver={e=>{e.preventDefault();e.currentTarget.style.background=C.accent+"10";}}
-                    onDragLeave={e=>{e.currentTarget.style.background=C.light;}}
-                    onDrop={e=>onDrop(e,date)}
-                    style={{background:C.light,borderRadius:7,padding:5,minHeight:78,border:isToday?`1px solid ${C.accent}`:"1px solid transparent",opacity:weekend&&!list.length?.55:1,transition:"background .15s"}}>
-                    <div style={{fontSize:10,color:isToday?C.accent:C.muted,fontWeight:isToday?700:400,marginBottom:3}}>
-                      {dayNum}{isToday?` · ${t("today")}`:""}
-                    </div>
-                    {mode==="stack"?(
-                      <div onClick={()=>setDayOpen(date)} style={{cursor:"pointer"}}>
-                        <div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:3}}>
-                          {list.slice(0,6).map(v=>(
-                            <div key={v.id} style={{height:3,borderRadius:2,background:colorOf(v.clientId)}}/>
-                          ))}
-                        </div>
-                        <div style={{fontSize:9,color:C.muted}}>{list.length} videos</div>
-                      </div>
-                    ):list.map(v=>{
-                      const col=colorOf(v.clientId);
-                      const late=isPast&&v.stage!=="published";
-                      return(
-                        <div key={v.id} draggable
-                          onDragStart={e=>{e.dataTransfer.setData("videoId",v.id);e.currentTarget.style.opacity=".4";}}
-                          onDragEnd={e=>{e.currentTarget.style.opacity="1";}}
-                          onClick={()=>{const c=clients.find(x=>x.id===v.clientId);if(c)onSelectClient(c);}}
-                          title={`${v.title}${late?" · past its date":""}`}
-                          style={{background:col+"18",borderLeft:`2px solid ${col}`,borderRadius:4,padding:mode==="full"?"3px 5px":"2px 4px",marginBottom:2,cursor:"grab",display:"flex",alignItems:"center",gap:4}}>
-                          {late&&<span style={{width:4,height:4,borderRadius:"50%",background:C.red,flexShrink:0}}/>}
-                          <span style={{fontSize:9,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.3}}>{v.title}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
+          <MonthGrid
+            cells={cells} byDay={byDay} colorOf={colorOf} todayISO={todayISO}
+            onDrop={onDrop} clientName={clientName}
+            onSelectClient={cid=>{const c=clients.find(x=>x.id===cid);if(c)onSelectClient(c);}}/>
 
           {unscheduled.length>0&&(
             <div style={{display:"flex",alignItems:"center",gap:11,background:C.surface,border:`1px solid ${C.border}`,borderLeft:`3px solid ${BRAND.yellow}`,borderRadius:9,padding:"11px 14px"}}>
@@ -1079,4 +1232,4 @@ function AgencyApp({user,profile,onLogout}){
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 
-export { AgencyApp, AgencyClientPipeline, AgencyDashboard, AgencyOnboarding, ClientProfileSetup };
+export { MonthGrid, AgencyApp, AgencyClientPipeline, AgencyDashboard, AgencyOnboarding, ClientProfileSetup };
