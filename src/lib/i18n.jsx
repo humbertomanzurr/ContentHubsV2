@@ -4,6 +4,9 @@
 // missing translation shows readable English rather than a broken token.
 const ES = {
   // Calendar & relative time
+  "Month":"Mes",
+  "Week":"Semana",
+  "This week":"Esta semana",
   "late":"tarde",
   "more":"más",
   "past its date":"pasó su fecha",

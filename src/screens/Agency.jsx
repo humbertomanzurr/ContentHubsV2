@@ -248,6 +248,101 @@ function GoalsModal({clients,targets,month,workspaceId,onSaved,onClose}){
 const STAGE_LABEL={idea:"Brief",production:"Production",editing:"Editing",
   review:"Ready for Review",approved:"Approved",published:"Published"};
 
+
+
+// Monday of the week containing a given ISO date. The grid is Monday-first, so
+// every week calculation starts here.
+const mondayOf=iso=>{
+  const d=new Date(iso+"T12:00:00");
+  d.setDate(d.getDate()-((d.getDay()+6)%7));
+  return d.toISOString().slice(0,10);
+};
+const shiftDays=(iso,n)=>{
+  const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+};
+// "15 – 21 sept" collapses to one month name when the week doesn't cross one.
+const weekLabel=start=>{
+  const a=new Date(start+"T12:00:00"), b=new Date(shiftDays(start,6)+"T12:00:00");
+  const opts={day:"numeric",month:"short"};
+  const sameMonth=a.getMonth()===b.getMonth();
+  const left=sameMonth?a.getDate():a.toLocaleDateString(locale(),opts).replace(".","");
+  return `${left} – ${b.toLocaleDateString(locale(),opts).replace(".","")}`;
+};
+
+// ── WEEK VIEW ─────────────────────────────────────────────────────────────────
+// A month cell is ~160px wide and ~116px tall whatever you do, so ten videos in
+// a day will never fit there. A week gives each day a full column — roughly
+// seven times the height — which fits everything without collapsing anything.
+// That is why nothing here expands on hover: there is nothing to expand.
+function WeekGrid({weekStart,byDay,colorOf,todayISO,onDrop,onSelectClient,clientName}){
+  const days=Array.from({length:7},(_,i)=>{
+    const d=new Date(weekStart+"T12:00:00"); d.setDate(d.getDate()+i);
+    return d.toISOString().slice(0,10);
+  });
+  return(
+    <Card pad={10} style={{marginBottom:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}}>
+        {days.map((date,i)=>{
+          const list=byDay[date]||[];
+          const isToday=date===todayISO;
+          const isPast=date<todayISO;
+          const weekend=i>=5;
+          const late=isPast?list.filter(v=>v.stage!=="published").length:0;
+          const d=new Date(date+"T12:00:00");
+          return(
+            <div key={date}
+              onDragOver={e=>{e.preventDefault();e.currentTarget.style.borderColor=C.accent;}}
+              onDragLeave={e=>{e.currentTarget.style.borderColor="";}}
+              onDrop={e=>{e.currentTarget.style.borderColor="";onDrop(e,date);}}
+              style={{background:weekend?C.light:C.surface,border:`1px solid ${C.border}`,
+                borderRadius:10,display:"flex",flexDirection:"column",minHeight:400}}>
+              <div style={{padding:"9px 9px 8px",borderBottom:`1px solid ${C.border}`,
+                display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
+                <span style={{fontSize:10,fontWeight:600,letterSpacing:.7,color:C.muted,textTransform:"uppercase"}}>
+                  {d.toLocaleDateString(locale(),{weekday:"short"}).replace(".","")}
+                </span>
+                {isToday
+                  ?<span style={{background:C.text,color:C.surface,fontWeight:600,fontSize:12,borderRadius:20,padding:"1px 8px"}}>{d.getDate()}</span>
+                  :<span style={{fontSize:13,fontWeight:600,color:C.muted}}>{d.getDate()}</span>}
+              </div>
+              {late>0&&(
+                <div style={{padding:"6px 9px 0"}}>
+                  <span style={{fontSize:9.5,fontWeight:700,letterSpacing:.3,color:"#9A6B0F",
+                    background:`${BRAND.yellow}33`,borderRadius:5,padding:"1px 5px"}}>{late} {t("late")}</span>
+                </div>
+              )}
+              <div style={{padding:8,display:"flex",flexDirection:"column",gap:5}}>
+                {list.length===0
+                  ?<div style={{fontSize:11,color:C.muted,padding:"6px 2px"}}>—</div>
+                  :list.map(v=>{
+                    const overdue=isPast&&v.stage!=="published";
+                    return(
+                      <div key={v.id} draggable
+                        onDragStart={e=>{e.dataTransfer.setData("videoId",v.id);e.currentTarget.style.opacity=".4";}}
+                        onDragEnd={e=>{e.currentTarget.style.opacity="1";}}
+                        onClick={()=>onSelectClient(v.clientId)}
+                        style={{display:"flex",gap:7,alignItems:"flex-start",padding:"6px 8px",borderRadius:8,
+                          background:overdue?`${BRAND.yellow}22`:C.light,cursor:"grab"}}>
+                        <span style={{width:3,alignSelf:"stretch",minHeight:15,borderRadius:2,background:colorOf(v.clientId),flexShrink:0}}/>
+                        <div style={{minWidth:0,flex:1}}>
+                          <div style={{fontSize:11.5,color:C.text,lineHeight:1.35,overflowWrap:"anywhere"}}>{v.title}</div>
+                          <div style={{fontSize:10,color:C.muted,marginTop:1}}>
+                            {clientName(v.clientId)}{v.editor?` · ${v.editor}`:""}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 // ── MONTH GRID ────────────────────────────────────────────────────────────────
 // A day cell is ~190px wide and can never fit more than three readable titles,
 // so past that the cell stops listing and starts summarising: how many, which
@@ -462,6 +557,11 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
   const[trayOpen,setTrayOpen]=useState(false);
   const[dayOpen,setDayOpen]=useState(null);
   const[calOpen,setCalOpen]=useState(true);
+  // Remembered per device, like the language toggle — the view you work in is
+  // a preference, not something to re-pick every visit.
+  const[view,setView]=useState(()=>{try{return localStorage.getItem("ch_calview")||"month";}catch(e){return "month";}});
+  const pickView=v=>{setView(v);try{localStorage.setItem("ch_calview",v);}catch(e){}};
+  const[weekStart,setWeekStart]=useState(()=>mondayOf(new Date().toISOString().slice(0,10)));
   const[goalsOpen,setGoalsOpen]=useState(false);
   // Colours identify clients across the whole calendar.
   const CLIENT_COLORS=[BRAND.blue,BRAND.green,BRAND.red,BRAND.yellow,C.purple,"#F97316","#0EA5E9","#DB2777"];
@@ -482,8 +582,11 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
   const agencyRevise=mVids.filter(v=>v.revision&&v.stage!=="published").length;
   const scheduled=mVids.filter(v=>v.targetDate);
   const unscheduled=mVids.filter(v=>!v.targetDate&&v.stage!=="published");
+  // Keyed off targetDate across ALL videos, not just this month's. The week
+  // view crosses month boundaries, and a card whose stored month disagrees
+  // with its targetDate used to disappear from the calendar altogether.
   const byDay={};
-  scheduled.forEach(v=>{(byDay[v.targetDate]=byDay[v.targetDate]||[]).push(v);});
+  videos.filter(v=>v.targetDate).forEach(v=>{(byDay[v.targetDate]=byDay[v.targetDate]||[]).push(v);});
 
   // Month grid, Monday-first, padded to whole weeks.
   const[y,mo]=month.split("-").map(Number);
@@ -529,11 +632,30 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
       )}
       {/* Month nav */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10}}>
-        <div style={{display:"flex",alignItems:"center",gap:7}}>
-          <button onClick={()=>onMonthChange(addMonths(month,-1))} style={{width:30,height:30,border:`1px solid ${C.border}`,borderRadius:7,background:C.surface,cursor:"pointer",fontSize:13,color:C.text}}>←</button>
-          <div style={{fontSize:15,fontWeight:700,color:C.text,minWidth:125,textAlign:"center"}}>{monthLabel(month)}</div>
-          <button onClick={()=>onMonthChange(addMonths(month,1))} style={{width:30,height:30,border:`1px solid ${C.border}`,borderRadius:7,background:C.surface,cursor:"pointer",fontSize:13,color:C.text}}>→</button>
-          {month!==curMonth()&&<button onClick={()=>onMonthChange(curMonth())} style={{padding:"5px 10px",border:`1px solid ${C.border}`,borderRadius:7,background:C.light,cursor:"pointer",fontSize:11,color:C.muted}}>{t("This month")}</button>}
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <div style={{display:"inline-flex",background:C.light,borderRadius:9,padding:3,gap:2}}>
+            {[["month",t("Month")],["week",t("Week")]].map(([id,label])=>(
+              <button key={id} onClick={()=>pickView(id)}
+                style={{fontSize:12.5,fontWeight:view===id?600:500,color:view===id?C.text:C.muted,
+                  background:view===id?C.surface:"transparent",border:"none",borderRadius:6,
+                  padding:"5px 13px",cursor:"pointer",boxShadow:view===id?sh:"none",fontFamily:"inherit"}}>{label}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:7}}>
+            <button onClick={()=>view==="week"?setWeekStart(w=>shiftDays(w,-7)):onMonthChange(addMonths(month,-1))} style={{width:30,height:30,border:`1px solid ${C.border}`,borderRadius:7,background:C.surface,cursor:"pointer",fontSize:13,color:C.text}}>←</button>
+            <div style={{fontSize:15,fontWeight:700,color:C.text,minWidth:135,textAlign:"center"}}>
+              {view==="week"?weekLabel(weekStart):monthLabel(month)}
+            </div>
+            <button onClick={()=>view==="week"?setWeekStart(w=>shiftDays(w,7)):onMonthChange(addMonths(month,1))} style={{width:30,height:30,border:`1px solid ${C.border}`,borderRadius:7,background:C.surface,cursor:"pointer",fontSize:13,color:C.text}}>→</button>
+            {(view==="week"
+              ? weekStart!==mondayOf(todayISO)
+              : month!==curMonth())&&(
+              <button onClick={()=>view==="week"?setWeekStart(mondayOf(todayISO)):onMonthChange(curMonth())}
+                style={{padding:"5px 10px",border:`1px solid ${C.border}`,borderRadius:7,background:C.light,cursor:"pointer",fontSize:11,color:C.muted}}>
+                {view==="week"?t("This week"):t("This month")}
+              </button>
+            )}
+          </div>
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={()=>setGoalsOpen(true)}>{t("Monthly goals")}</Btn><Btn primary onClick={()=>setShowAddClient(true)}>{t("+ Add client")}</Btn></div>
       </div>
@@ -654,10 +776,15 @@ function AgencyDashboard({clientError,clients,videos,targets,month,onMonthChange
         </Card>
       ):calOpen?(
         <>
-          <MonthGrid
-            cells={cells} byDay={byDay} colorOf={colorOf} todayISO={todayISO}
-            onDrop={onDrop} clientName={clientName}
-            onSelectClient={cid=>{const c=clients.find(x=>x.id===cid);if(c)onSelectClient(c);}}/>
+          {view==="week"
+            ?<WeekGrid
+               weekStart={weekStart} byDay={byDay} colorOf={colorOf} todayISO={todayISO}
+               onDrop={onDrop} clientName={clientName}
+               onSelectClient={cid=>{const c=clients.find(x=>x.id===cid);if(c)onSelectClient(c);}}/>
+            :<MonthGrid
+               cells={cells} byDay={byDay} colorOf={colorOf} todayISO={todayISO}
+               onDrop={onDrop} clientName={clientName}
+               onSelectClient={cid=>{const c=clients.find(x=>x.id===cid);if(c)onSelectClient(c);}}/>}
 
           {unscheduled.length>0&&(
             <div style={{display:"flex",alignItems:"center",gap:11,background:C.surface,border:`1px solid ${C.border}`,borderLeft:`3px solid ${BRAND.yellow}`,borderRadius:9,padding:"11px 14px"}}>
@@ -1232,4 +1359,4 @@ function AgencyApp({user,profile,onLogout}){
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 
-export { MonthGrid, AgencyApp, AgencyClientPipeline, AgencyDashboard, AgencyOnboarding, ClientProfileSetup };
+export { WeekGrid, MonthGrid, AgencyApp, AgencyClientPipeline, AgencyDashboard, AgencyOnboarding, ClientProfileSetup };
