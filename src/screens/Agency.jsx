@@ -328,7 +328,7 @@ function WeekGrid({weekStart,byDay,colorOf,todayISO,onDrop,onSelectClient,client
                         <div style={{minWidth:0,flex:1}}>
                           <div style={{fontSize:11.5,color:C.text,lineHeight:1.35,overflowWrap:"anywhere"}}>{v.title}</div>
                           <div style={{fontSize:10,color:C.muted,marginTop:1}}>
-                            {clientName(v.clientId)}{v.editor?` · ${v.editor}`:""}
+                            {clientName(v.clientId)}
                           </div>
                         </div>
                       </div>
@@ -517,7 +517,7 @@ function DayPanel({date,list,colorOf,clientName,isPast,flipX,flipY,hotRow,setHot
               <div style={{minWidth:0,flex:1}}>
                 <b style={{display:"block",fontSize:11.5,fontWeight:500,color:C.text,lineHeight:1.35}}>{v.title}</b>
                 <div style={{fontSize:10.5,color:C.muted,maxHeight:on?70:0,overflow:"hidden",transition:"max-height .18s ease"}}>
-                  <div style={{marginTop:3}}>{clientName(v.clientId)}{v.editor?` · ${v.editor}`:""}</div>
+                  <div style={{marginTop:3}}>{clientName(v.clientId)}</div>
                   <div style={{marginTop:3}}>
                     <span style={{fontSize:9,fontWeight:700,letterSpacing:.3,padding:"1px 6px",borderRadius:20,
                       color:overdue?"#9A6B0F":C.green,background:overdue?`${BRAND.yellow}33`:`${C.green}22`}}>
