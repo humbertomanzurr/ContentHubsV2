@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { aiHeaders } from "../lib/supabase";
 import { C, BRAND, Card, Btn, inp, Logo, PlatformIcon } from "../ui/theme";
 import { uuid } from "../lib/format";
 import { t } from "../lib/i18n";
@@ -130,8 +131,8 @@ Return ONLY a JSON array of 5 short phrases, 1-3 words each, describing the SOUN
         body:JSON.stringify({messages:[{role:"user",content:msg}],systemPrompt:sys})});
       const raw=await r.text();
       let d;try{d=JSON.parse(raw);}catch(e){d=null;}
-      setChat(c=>[...c,{role:"ai",text:(d&&d.content)?d.content:"Try that again in a moment."}]);
-    }catch(e){setChat(c=>[...c,{role:"ai",text:"Try that again in a moment."}]);}
+      setChat(c=>[...c,{role:"ai",text:(d&&d.content)?d.content:((d&&d.error)||"No reply came back.")}]);
+    }catch(e){setChat(c=>[...c,{role:"ai",text:e.message||"Could not reach the server."}]);}
     setChatBusy(false);
   };
 

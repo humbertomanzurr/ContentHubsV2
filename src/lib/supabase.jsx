@@ -20,6 +20,29 @@ const aiHeaders = () => ({
 });
 
 
+
+// Every caller of /api/chat handled failure differently, and Script handled it
+// not at all: fetch does not throw on 4xx or 5xx, so a 401, a 500 or a timeout
+// all arrived as a body with no `content`, and the UI silently did nothing.
+// One shape for all of them — {ok, content, error} — so a failure always has
+// something to render.
+const askAI = async (payload) => {
+  try {
+    const r = await fetch("/api/chat", {
+      method: "POST", headers: aiHeaders(), body: JSON.stringify(payload),
+    });
+    const raw = await r.text();
+    let d = null;
+    try { d = JSON.parse(raw); } catch (e) {}
+    if (!d) return { ok:false, error:`The server replied with something unreadable (${r.status}).` };
+    if (d.error) return { ...d, ok:false, error:String(d.error), status:r.status };
+    if (!r.ok) return { ...d, ok:false, error:`Request failed (${r.status}).`, status:r.status };
+    return { ...d, ok:true };
+  } catch (e) {
+    return { ok:false, error:(e && e.message) || "Could not reach the server." };
+  }
+};
+
 const sbGet = async (t,p="") => { try { const r=await fetch(`${SB_URL}/rest/v1/${t}?select=*${p}`,{headers:_h()}); return r.ok?await r.json():[];} catch(e){return [];} };
 
 const sbGetWhere = async (t,col,val,extra="") => {
@@ -127,4 +150,4 @@ const getWorkspaceMember = async (userId) => {
 
 // ── AGENCY ONBOARDING ─────────────────────────────────────────────────────────
 
-export { aiHeaders, sbGetWhere, sbSessionSync, SB_KEY, SB_URL, _h, _token, addNote, createWorkspace, getNotes, getWorkspaceMember, sbDelete, sbGet, sbGetOne, sbGetSession, sbInsert, sbInsertX, sbSignIn, sbSignOut, sbSignUp, sbUpdate, sbUpsert };
+export { askAI, aiHeaders, sbGetWhere, sbSessionSync, SB_KEY, SB_URL, _h, _token, addNote, createWorkspace, getNotes, getWorkspaceMember, sbDelete, sbGet, sbGetOne, sbGetSession, sbInsert, sbInsertX, sbSignIn, sbSignOut, sbSignUp, sbUpdate, sbUpsert };
