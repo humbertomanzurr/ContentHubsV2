@@ -5,13 +5,28 @@ import { BRAND, Btn, C, Card, inp } from "../ui/theme";
 
 const EMOJIS=["🏪","👗","💪","💳","🚗","🏢","🍺","🍽️","❤️","💻","🏠","🎬","⭐","🔥","💡","🎯","🚀","💎","🌟","🌿","🎪","📱"];
 
+// Role carries a colour so a team list is scannable without reading every row.
+const ROLE_COLOR={admin:"#7F77DD",editor:"#378ADD",member:"#1D9E75"};
+
 const ROLES=[
   {id:"admin",  label:"Admin",   desc:"Sees every client, can publish and approve."},
   {id:"editor", label:"Editor",  desc:"Works in Editing, attaches finished videos."},
-  {id:"member", label:"Member",  desc:"Can move cards and write scripts."},
+  {id:"member", label:"Community Manager", desc:"Schedules, writes scripts and moves cards."},
 ];
 
+// Inline styles cannot hold a media query, so the viewport is tracked in state.
+function useNarrow(px=760){
+  const[narrow,setNarrow]=useState(()=>typeof window!=="undefined"&&window.innerWidth<px);
+  useEffect(()=>{
+    const onResize=()=>setNarrow(window.innerWidth<px);
+    window.addEventListener("resize",onResize); onResize();
+    return()=>window.removeEventListener("resize",onResize);
+  },[px]);
+  return narrow;
+}
+
 function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReload}){
+  const narrow=useNarrow();
   const[members,setMembers]=useState([]);
   const[wsEdit,setWsEdit]=useState(wsName||"");
   const[nameEdit,setNameEdit]=useState(profile?.name||"");
@@ -74,24 +89,27 @@ function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReloa
   );
 
   return(
-    <div>
-      <Card pad={0} style={{marginBottom:16,overflow:"hidden"}}>
-        <div style={{display:"flex",height:3}}>
-          {[BRAND.red,BRAND.yellow,BRAND.blue,BRAND.green].map((c,i)=><div key={i} style={{flex:1,background:c}}/>)}
-        </div>
-        <div style={{padding:"15px 18px 0"}}>
-          <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{t("Settings")}</div>
-          <div style={{fontSize:17,fontWeight:600,color:C.text,letterSpacing:-0.2,marginBottom:12}}>{t("Workspace")}</div>
-          <div style={{display:"flex",gap:2,flexWrap:"wrap"}}>
-            {[["users",t("Users")],["clients",t("Clients")],["workspace",t("Workspace")],["account",t("My account")],["language",t("Language")]].map(([id,label])=>(
-              <button key={id} onClick={()=>onTab&&onTab(id)}
-                style={{padding:"8px 13px",border:"none",cursor:"pointer",fontSize:12,fontWeight:tab===id?600:400,
-                  color:tab===id?C.text:C.muted,background:"transparent",
-                  borderBottom:tab===id?`2px solid ${C.text}`:"2px solid transparent"}}>{label}</button>
-            ))}
-          </div>
-        </div>
-      </Card>
+    <div style={{display:"grid",gridTemplateColumns:narrow?"1fr":"178px 1fr",gap:narrow?14:24,alignItems:"start"}}>
+      {/* Settings is a list of places, not a sequence — a sidebar says that,
+          a row of tabs implies an order that does not exist. */}
+      <nav className="ch-nav">
+        <div className="ch-nav__group">{t("Workspace")}</div>
+        {[["users",t("Users")],["clients",t("Clients")],["workspace",t("Workspace")]].map(([id,label])=>(
+          <button key={id} onClick={()=>onTab&&onTab(id)}
+            className={"ch-nav__item"+(tab===id?" ch-nav__item--on":"")}>
+            <span className="ch-nav__key"/>{label}
+          </button>
+        ))}
+        <div className="ch-nav__group">{t("You")}</div>
+        {[["account",t("My account")],["language",t("Language")]].map(([id,label])=>(
+          <button key={id} onClick={()=>onTab&&onTab(id)}
+            className={"ch-nav__item"+(tab===id?" ch-nav__item--on":"")}>
+            <span className="ch-nav__key"/>{label}
+          </button>
+        ))}
+      </nav>
+
+      <div style={{minWidth:0}}>
 
       {tab==="users"&&(
         <>
@@ -157,7 +175,7 @@ function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReloa
                     <div key={m.user_id} style={{borderBottom:`0.5px solid ${C.border}`}}>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 150px 44px",gap:10,padding:"11px 16px",alignItems:"center"}}>
                         <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-                          <div style={{width:28,height:28,borderRadius:"50%",background:C.light,border:`0.5px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:C.muted,flexShrink:0}}>
+                          <div className="ch-avatar" style={{background:ROLE_COLOR[m.role||"member"]||C.muted}}>
                             {(nm||"?").slice(0,1).toUpperCase()}
                           </div>
                           <div style={{minWidth:0}}>
@@ -339,6 +357,7 @@ function SettingsPage({workspaceId,wsName,user,profile,tab,onTab,clients,onReloa
           </div>
         </Card>
       )}
+      </div>
     </div>
   );
 }

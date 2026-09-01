@@ -1305,37 +1305,31 @@ function AgencyApp({user,profile,onLogout}){
         {/* Account menu — settings live behind your identity, not beside daily work */}
         <div style={{position:"relative"}}>
           <button onClick={()=>setMenuOpen(o=>!o)}
-            style={{display:"flex",alignItems:"center",gap:7,padding:"5px 11px",border:`1px solid ${menuOpen?C.text:C.border}`,borderRadius:20,background:C.surface,cursor:"pointer",fontSize:11,color:C.text}}>
+            className={"ch-menu__trigger"+(menuOpen?" ch-menu__trigger--open":"")}>
             <span style={{width:18,height:18,borderRadius:"50%",background:C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:C.muted}}>
               {(profile?.name||user.email||"?").slice(0,1).toUpperCase()}
             </span>
             <span style={{maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile?.name||user.email}</span>
-            <span style={{fontSize:9,color:C.muted,transform:menuOpen?"rotate(180deg)":"none",transition:"transform .15s"}}>▾</span>
+            <span className={"ch-caret"+(menuOpen?" ch-caret--up":"")}>▾</span>
           </button>
           {menuOpen&&(
             <>
               <div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:900}}/>
-              <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,width:230,background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 12px 32px rgba(0,0,0,.14)",zIndex:901,overflow:"hidden",padding:"6px 0"}}>
+              <div className="ch-menu">
                 <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",padding:"7px 13px 5px"}}>{wsName||t("Workspace")}</div>
                 {[["users",t("Users")],["clients",t("Clients")],["workspace",t("Workspace")]].map(([id,label])=>(
                   <button key={id} onClick={()=>{setSettingsTab(id);setPage("settings");setSelectedClient(null);setMenuOpen(false);}}
-                    style={{display:"block",width:"100%",textAlign:"left",padding:"8px 13px",border:"none",background:"transparent",cursor:"pointer",fontSize:12,color:C.text}}
-                    onMouseEnter={e=>e.currentTarget.style.background=C.light}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{label}</button>
+                    className="ch-menu__item"><span className="ch-nav__key"/>{label}</button>
                 ))}
                 <div style={{height:1,background:C.border,margin:"6px 0"}}/>
                 <div style={{fontSize:9,fontWeight:600,color:C.muted,letterSpacing:1,textTransform:"uppercase",padding:"5px 13px 5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</div>
                 {[["account",t("My account")],["language",t("Language")]].map(([id,label])=>(
                   <button key={id} onClick={()=>{setSettingsTab(id);setPage("settings");setSelectedClient(null);setMenuOpen(false);}}
-                    style={{display:"block",width:"100%",textAlign:"left",padding:"8px 13px",border:"none",background:"transparent",cursor:"pointer",fontSize:12,color:C.text}}
-                    onMouseEnter={e=>e.currentTarget.style.background=C.light}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{label}</button>
+                    className="ch-menu__item"><span className="ch-nav__key"/>{label}</button>
                 ))}
                 <div style={{height:1,background:C.border,margin:"6px 0"}}/>
                 <button onClick={onLogout}
-                  style={{display:"block",width:"100%",textAlign:"left",padding:"8px 13px",border:"none",background:"transparent",cursor:"pointer",fontSize:12,color:C.red}}
-                  onMouseEnter={e=>e.currentTarget.style.background=C.light}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{t("Sign out")}</button>
+                  className="ch-menu__item"><span className="ch-nav__key"/>{t("Sign out")}</button>
               </div>
             </>
           )}

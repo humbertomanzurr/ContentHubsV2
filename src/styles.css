@@ -1,0 +1,232 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ContentHubs — design tokens and base styles
+
+   This file exists because inline styles cannot express a state. A React style
+   object has no :hover, :focus, :active or :disabled — so before this, states
+   were either hand-rolled with onMouseEnter (20 of those across the screens,
+   each writing colour straight onto the DOM behind React's back) or, far more
+   often, simply absent. theme.jsx set outline:none on every input and replaced
+   it with nothing, which meant you could not see which field you were typing
+   in anywhere in the app.
+
+   Nothing here changes an existing layout. The 42 places that spread the `inp`
+   style object and the 28 that render <Btn> keep working untouched; they just
+   gain states, because the rules below reach them by element and by class.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import url("https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap");
+
+:root{
+  /* ── brand ── */
+  --ch-red:#E24B4A;
+  --ch-yellow:#F0C040;
+  --ch-blue:#378ADD;
+  --ch-green:#1D9E75;
+  --ch-purple:#7F77DD;
+
+  /* ── surfaces, three levels so hierarchy is possible at all ── */
+  --ch-sunken:#F1F3F7;
+  --ch-base:#FFFFFF;
+  --ch-raised:#FFFFFF;
+  --ch-page:#F7F8FA;
+
+  /* ── ink ── */
+  --ch-ink:#141922;
+  --ch-ink-2:#586475;
+  --ch-ink-3:#8A96A6;
+
+  /* ── lines ── */
+  --ch-line:#E3E8EF;
+  --ch-line-soft:#EEF1F5;
+  --ch-line-strong:#CBD4E0;
+
+  /* ── semantic, kept separate from the brand accent ── */
+  --ch-ok:#177F5E;
+  --ch-warn:#9A6B0F;
+  --ch-danger:#C13B3A;
+  --ch-accent:#2A6FB8;
+
+  /* ── elevation ── */
+  --ch-shadow-sm:0 1px 2px rgba(20,25,34,.06);
+  --ch-shadow:0 1px 2px rgba(20,25,34,.04), 0 8px 24px rgba(20,25,34,.07);
+  --ch-shadow-lg:0 4px 12px rgba(20,25,34,.10), 0 18px 44px rgba(20,25,34,.14);
+
+  /* ── type scale: six sizes, down from the 24 in use ── */
+  --ch-t-micro:10px;   /* uppercase labels only */
+  --ch-t-xs:11.5px;    /* meta, captions */
+  --ch-t-sm:12.5px;    /* dense UI, table rows */
+  --ch-t-base:14px;    /* body */
+  --ch-t-lg:17px;      /* section headings */
+  --ch-t-xl:22px;      /* page titles */
+
+  /* ── spacing: one step, multiplied ── */
+  --ch-1:4px; --ch-2:8px; --ch-3:12px; --ch-4:16px;
+  --ch-5:20px; --ch-6:24px; --ch-8:32px;
+
+  /* ── radii ── */
+  --ch-r-sm:7px; --ch-r:10px; --ch-r-lg:14px; --ch-r-pill:999px;
+
+  --ch-font:"Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* The app was system-ui everywhere — the typeface of not having chosen one.
+   Set on body so every inline `fontFamily:"system-ui"` still in the screens
+   is overridden by inheritance where it isn't restated. */
+body{
+  /* index.html still sets background:#07090F — a leftover from a dark theme
+     the app no longer has. It shows as a black band anywhere the content does
+     not reach. */
+  background:var(--ch-page);
+  color:var(--ch-ink);
+  font-family:var(--ch-font);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+input, select, textarea, button{ font-family:inherit; }
+
+/* ── FOCUS ────────────────────────────────────────────────────────────────
+   The single most dated thing about the forms, and a real accessibility
+   failure: theme.jsx sets outline:none on the shared input object, so keyboard
+   users had nothing at all. These reach every input in the app by element, so
+   no call site changes. */
+:where(input, select, textarea):focus-visible,
+:where(input, select, textarea):focus{
+  outline:none;
+  border-color:var(--ch-accent) !important;
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--ch-accent) 18%, transparent);
+}
+:where(input, select, textarea){
+  transition:border-color .13s ease, box-shadow .13s ease;
+}
+:where(input, select, textarea):hover:not(:focus){
+  border-color:var(--ch-line-strong) !important;
+}
+:where(button, a, [tabindex]):focus-visible{
+  outline:2px solid var(--ch-accent);
+  outline-offset:2px;
+  border-radius:var(--ch-r-sm);
+}
+
+/* Buttons had no pressed state anywhere. Cheap, and it makes the whole app
+   feel like it is responding to you. */
+button:not(:disabled){ transition:background .13s ease, border-color .13s ease, transform .06s ease, box-shadow .13s ease; }
+button:not(:disabled):active{ transform:translateY(1px); }
+
+/* ── COMPONENTS ───────────────────────────────────────────────────────────
+   Used by the screens rebuilt against this system. Older screens keep their
+   inline styles and simply inherit the base rules above. */
+
+.ch-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:var(--ch-2);
+  font-size:var(--ch-t-sm); font-weight:600; line-height:1;
+  padding:9px 16px; border-radius:var(--ch-r-sm);
+  border:1px solid var(--ch-line); background:var(--ch-base); color:var(--ch-ink);
+  cursor:pointer; white-space:nowrap;
+}
+.ch-btn:hover:not(:disabled){ background:var(--ch-sunken); border-color:var(--ch-line-strong); }
+.ch-btn:disabled{ opacity:.5; cursor:not-allowed; }
+.ch-btn--primary{ background:var(--ch-ink); border-color:var(--ch-ink); color:#fff; }
+.ch-btn--primary:hover:not(:disabled){ background:var(--ch-ink-2); border-color:var(--ch-ink-2); }
+.ch-btn--danger{ color:var(--ch-danger); border-color:color-mix(in srgb, var(--ch-danger) 30%, transparent); }
+.ch-btn--danger:hover:not(:disabled){ background:color-mix(in srgb, var(--ch-danger) 9%, transparent); border-color:var(--ch-danger); }
+.ch-btn--sm{ padding:6px 12px; font-size:var(--ch-t-xs); }
+.ch-btn--ghost{ border-color:transparent; background:transparent; }
+.ch-btn--ghost:hover:not(:disabled){ background:var(--ch-sunken); border-color:transparent; }
+
+.ch-field{ margin-bottom:var(--ch-3); }
+.ch-label{ display:block; font-size:var(--ch-t-xs); font-weight:600; color:var(--ch-ink-2); margin-bottom:5px; }
+.ch-hint{ font-size:var(--ch-t-xs); color:var(--ch-ink-3); margin-top:5px; line-height:1.45; }
+.ch-input{
+  width:100%; box-sizing:border-box; font-size:13px;
+  padding:9px 12px; border-radius:9px;
+  border:1px solid var(--ch-line); background:var(--ch-base); color:var(--ch-ink);
+}
+
+.ch-panel{
+  background:var(--ch-base); border:1px solid var(--ch-line);
+  border-radius:var(--ch-r-lg); overflow:hidden;
+}
+.ch-panel__head{
+  display:flex; align-items:center; justify-content:space-between; gap:var(--ch-2);
+  padding:11px 14px; background:var(--ch-sunken); border-bottom:1px solid var(--ch-line);
+  flex-wrap:wrap;
+}
+.ch-panel__title{ font-size:var(--ch-t-sm); font-weight:600; color:var(--ch-ink); }
+.ch-panel__count{ font-size:var(--ch-t-xs); color:var(--ch-ink-3); font-variant-numeric:tabular-nums; }
+.ch-panel__body{ padding:var(--ch-4); }
+
+.ch-row{
+  display:flex; align-items:center; gap:11px;
+  padding:10px 14px; border-bottom:1px solid var(--ch-line-soft);
+}
+.ch-row:last-child{ border-bottom:none; }
+.ch-row:hover{ background:var(--ch-sunken); }
+
+.ch-avatar{
+  width:30px; height:30px; border-radius:9px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--ch-t-xs); font-weight:700; color:#fff;
+}
+
+.ch-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:var(--ch-t-xs); font-weight:600; white-space:nowrap;
+  padding:3px 10px; border-radius:var(--ch-r-pill);
+  border:1px solid var(--ch-line); background:var(--ch-base); color:var(--ch-ink-2);
+}
+.ch-chip--admin{ color:var(--ch-purple); border-color:color-mix(in srgb, var(--ch-purple) 35%, transparent); background:color-mix(in srgb, var(--ch-purple) 10%, transparent); }
+.ch-chip--editor{ color:var(--ch-accent); border-color:color-mix(in srgb, var(--ch-accent) 35%, transparent); background:color-mix(in srgb, var(--ch-accent) 10%, transparent); }
+.ch-chip--cm{ color:var(--ch-ok); border-color:color-mix(in srgb, var(--ch-ok) 35%, transparent); background:color-mix(in srgb, var(--ch-ok) 10%, transparent); }
+
+/* settings side navigation */
+.ch-nav{ display:flex; flex-direction:column; gap:2px; }
+.ch-nav__group{
+  font-size:var(--ch-t-micro); font-weight:700; letter-spacing:1.1px; text-transform:uppercase;
+  color:var(--ch-ink-3); padding:10px 10px 5px;
+}
+.ch-nav__item{
+  display:flex; align-items:center; gap:9px; width:100%; text-align:left;
+  padding:7px 10px; border-radius:var(--ch-r-sm); border:1px solid transparent;
+  font-size:var(--ch-t-sm); font-weight:500; color:var(--ch-ink-2);
+  background:transparent; cursor:pointer;
+}
+.ch-nav__item:hover{ background:var(--ch-sunken); }
+.ch-nav__item--on{ background:var(--ch-sunken); color:var(--ch-ink); font-weight:600; }
+.ch-nav__key{ width:5px; height:5px; border-radius:1.5px; background:currentColor; opacity:.4; flex-shrink:0; }
+.ch-nav__item--on .ch-nav__key{ opacity:1; background:var(--ch-blue); }
+
+/* account menu */
+.ch-menu{
+  position:absolute; top:calc(100% + 6px); right:0; z-index:901; width:258px;
+  background:var(--ch-base); border:1px solid var(--ch-line);
+  border-radius:13px; box-shadow:var(--ch-shadow-lg); padding:6px;
+}
+.ch-menu__head{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 9px 11px; border-bottom:1px solid var(--ch-line-soft); margin-bottom:5px;
+}
+.ch-menu__item{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  padding:8px 9px; border-radius:var(--ch-r-sm); border:none; background:transparent;
+  font-size:var(--ch-t-sm); color:var(--ch-ink); cursor:pointer;
+}
+.ch-menu__item:hover{ background:var(--ch-sunken); }
+.ch-menu__item--danger{ color:var(--ch-danger); }
+.ch-menu__item--danger:hover{ background:color-mix(in srgb, var(--ch-danger) 9%, transparent); }
+.ch-menu__item--danger .ch-nav__key{ background:var(--ch-danger); opacity:1; }
+.ch-menu__trigger{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:4px 11px 4px 4px; border-radius:var(--ch-r-pill);
+  border:1px solid var(--ch-line); background:var(--ch-base);
+  font-size:var(--ch-t-sm); color:var(--ch-ink); cursor:pointer;
+}
+.ch-menu__trigger:hover{ background:var(--ch-sunken); border-color:var(--ch-line-strong); }
+.ch-menu__trigger--open{ border-color:var(--ch-ink); }
+
+.ch-caret{ font-size:9px; color:var(--ch-ink-3); transition:transform .15s ease; }
+.ch-caret--up{ transform:rotate(180deg); }
+
+@media (prefers-reduced-motion: reduce){
+  *{ transition:none !important; animation:none !important; }
+  button:not(:disabled):active{ transform:none; }
+}

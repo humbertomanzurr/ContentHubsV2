@@ -27,11 +27,23 @@ const sh="0 1px 3px rgba(0,0,0,.08)";
 
 const shMd="0 4px 12px rgba(0,0,0,.1)";
 
-const inp={width:"100%",background:C.light,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box"};
+// outline:"none" used to be the whole story here — removed with nothing put
+// back, so no input in the app had a visible focus state. The ring now lives
+// in styles.css and reaches every input by element, so none of the 42 places
+// that spread this object had to change.
+const inp={width:"100%",background:C.surface,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 12px",color:C.text,fontSize:13,boxSizing:"border-box"};
 
 const Card=({children,pad=18,style={}})=><div style={{background:C.surface,borderRadius:12,padding:pad,border:`1px solid ${C.border}`,boxShadow:sh,...style}}>{children}</div>;
 
-const Btn=({children,primary,onClick,small,disabled,style={}})=><button onClick={onClick} disabled={disabled} style={{padding:small?"6px 12px":"9px 18px",background:primary?C.text:C.surface,color:primary?"#FFF":C.text,border:`1px solid ${primary?C.text:C.border}`,borderRadius:8,cursor:disabled?"not-allowed":"pointer",fontSize:small?12:13,fontWeight:600,opacity:disabled?.5:1,...style}}>{children}</button>;
+// Same props as before — every existing <Btn> keeps working. The difference is
+// that hover, active and disabled now come from CSS, which a style object
+// cannot express, so they finally exist everywhere rather than in the handful
+// of places someone hand-rolled onMouseEnter.
+const Btn=({children,primary,onClick,small,disabled,danger,style={}})=>(
+  <button onClick={onClick} disabled={disabled}
+    className={["ch-btn",primary?"ch-btn--primary":"",danger?"ch-btn--danger":"",small?"ch-btn--sm":""].filter(Boolean).join(" ")}
+    style={style}>{children}</button>
+);
 
 const Tag=({c,color=C.gold})=><span style={{display:"inline-block",padding:"2px 7px",borderRadius:20,fontSize:10,fontWeight:600,background:color+"18",color,border:`1px solid ${color}30`,marginRight:3}}>{c}</span>;
 

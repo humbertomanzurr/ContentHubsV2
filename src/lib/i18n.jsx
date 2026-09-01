@@ -3,6 +3,9 @@
 // when the language is ES, and falls back to the key itself otherwise — so a
 // missing translation shows readable English rather than a broken token.
 const ES = {
+  "You":"Tú",
+  "Community Manager":"Community Manager",
+  "Schedules, writes scripts and moves cards.":"Agenda, escribe guiones y mueve tarjetas.",
   // Calendar & relative time
   "Month":"Mes",
   "Week":"Semana",
