@@ -124,7 +124,7 @@ Devuelve SOLO un arreglo JSON, sin markdown:
 
 Hasta 12 resultados.`;
       const r=await fetch("/api/chat",{method:"POST",headers:aiHeaders(),
-        body:JSON.stringify({messages:[{role:"user",content:q}],systemPrompt:sys,useWebSearch:true,maxUses:3})});
+        body:JSON.stringify({feature:"creators",messages:[{role:"user",content:q}],systemPrompt:sys,useWebSearch:true,maxUses:3})});
       const raw=await r.text();
       let d;try{d=JSON.parse(raw);}catch(e){d={error:raw.slice(0,140)};}
       if(d.error){setSearchErr(String(d.error).slice(0,180));setSearching(false);return;}

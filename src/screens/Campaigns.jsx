@@ -189,7 +189,7 @@ The four queries must attack the subject from different directions, not rephrase
     try{
       const r=await fetch("/api/chat",{
         method:"POST",headers:aiHeaders(),
-        body:JSON.stringify({messages:[{role:"user",content:prompt}],systemPrompt:sys})
+        body:JSON.stringify({feature:"campaign",messages:[{role:"user",content:prompt}],systemPrompt:sys})
       });
       const d=await readReply(r);
       if(!d||d.error||!d.content)return null;
@@ -205,6 +205,7 @@ The four queries must attack the subject from different directions, not rephrase
       const r=await fetch("/api/chat",{
         method:"POST",signal,headers:aiHeaders(),
         body:JSON.stringify({
+          feature:"campaign",
           messages:[{role:"user",content:`Search ${platform} for: ${query||prompt}\n\nCampaign context: ${prompt}\n\nStart searching now, then return the JSON array.`}],
           systemPrompt:buildSearchSystem(angle,query||prompt),
           useWebSearch:true,
@@ -328,6 +329,7 @@ Generate exactly 10 ideas. JSON only.`;
         method:"POST",
         headers:aiHeaders(),
         body:JSON.stringify({
+          feature:"campaign",
           messages:[{role:"user",content:`Campaign brief: ${context}
 
 Selected references:

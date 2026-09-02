@@ -71,7 +71,7 @@ function ScriptDocument({card,analytics,onSave,onClose}){
     setChatLoading(true);
     try{
       const sys=`You are a creative direction assistant. Give brief, specific directions — never write the script. Under 50 words. End with one question. Platform: ${platform}. Video: "${card.title}". Current hook: "${sections.hook||"empty"}"`;
-      const d=await askAI({messages:[{role:"user",content:userMsg}],systemPrompt:sys});
+      const d=await askAI({feature:"script",messages:[{role:"user",content:userMsg}],systemPrompt:sys});
       if(d.ok&&d.content)setChatMsgs(p=>[...p,{role:"ai",text:d.content}]);
       else setChatMsgs(p=>[...p,{role:"ai",text:d.error||"No reply came back.",failed:true}]);
     }catch(e){setChatMsgs(p=>[...p,{role:"ai",text:e.message||"Could not reach the server.",failed:true}]);}
